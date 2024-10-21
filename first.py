@@ -1,197 +1,152 @@
-#!/usr/bin/env python3
-
-"""
-Programma per addestrare una Multilayer Perceptron (MLP) per il Keyword Spotting utilizzando PyTorch.
-
-- Carica il Google Speech Commands Dataset.
-- Preprocessa gli audio in coefficienti MFCC.
-- Definisce un modello MLP.
-- Addestra il modello.
-- Applica la quantizzazione post-addestramento.
-- Esporta i pesi per l'uso su un MCU.
-
-Prerequisiti:
-- Python 3.6+
-- PyTorch
-- Torchaudio
-- NumPy
-- Scikit-learn
-"""
-
+import os
 import torch
+import torchaudio
+import torchaudio.transforms as T
+from torch.utils.data import Dataset, DataLoader
 import torch.nn as nn
 import torch.optim as optim
-import torchaudio
-from torch.utils.data import DataLoader, Dataset
 import numpy as np
-import os
-from sklearn.model_selection import train_test_split
 
-# Configurazione del dispositivo
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-# Hyperparametri
-batch_size = 64
-num_epochs = 20
-learning_rate = 0.001
-
-# Lista delle parole chiave da riconoscere
-keywords = ['yes', 'no', 'up', 'down', 'left', 'right', 'on', 'off', 'stop', 'go']
-
-# Percorso al dataset
-data_path = './speech_commands/'
-
-# Classe per il Dataset
+# Definizione del dataset personalizzato
 class SpeechCommandsDataset(Dataset):
-    def __init__(self, data_path, keywords, transform=None):
-        self.data = []
+    def __init__(self, root_dir, transform=None):
+        self.root_dir = root_dir
+        self.commands = sorted(os.listdir(root_dir))
+        self.all_files = []
         self.labels = []
         self.transform = transform
-        self.keywords = keywords
 
-        for idx, keyword in enumerate(keywords):
-            keyword_path = os.path.join(data_path, keyword)
-            if os.path.isdir(keyword_path):
-                for file_name in os.listdir(keyword_path):
-                    if file_name.endswith('.wav'):
-                        self.data.append(os.path.join(keyword_path, file_name))
-                        self.labels.append(idx)
+        for idx, command in enumerate(self.commands):
+            command_dir = os.path.join(root_dir, command)
+            if os.path.isdir(command_dir):
+                files = [f for f in os.listdir(command_dir) if f.endswith('.wav')]
+                for f in files:
+                    self.all_files.append(os.path.join(command_dir, f))
+                    self.labels.append(idx)
 
     def __len__(self):
-        return len(self.data)
+        return len(self.all_files)
 
     def __getitem__(self, idx):
-        waveform, sample_rate = torchaudio.load(self.data[idx])
+        audio_path = self.all_files[idx]
         label = self.labels[idx]
+        waveform, sample_rate = torchaudio.load(audio_path)
 
-        # Converti a mono se necessario
-        if waveform.shape[0] > 1:
-            waveform = torch.mean(waveform, dim=0, keepdim=True)
+        # Preprocessing per uniformare la durata degli audio
+        waveform = self._preprocess_audio(waveform, sample_rate)
 
-        # Ridimensiona l'audio a 1 secondo (16000 campioni)
-        waveform = torchaudio.transforms.Resample(orig_freq=sample_rate, new_freq=16000)(waveform)
-        waveform = torchaudio.transforms.PadTrim(max_len=16000)(waveform)
+        if self.transform:
+            features = self.transform(waveform)
+        else:
+            features = waveform
 
-        # Estrai i coefficienti MFCC
-        mfcc = torchaudio.transforms.MFCC(sample_rate=16000, n_mfcc=20)(waveform)
-        mfcc = mfcc.squeeze(0)  # Rimuovi la dimensione del canale
+        return features, label
 
-        # Flatten delle feature per l'input all'MLP
-        mfcc = mfcc.view(-1)
+    def _preprocess_audio(self, waveform, sample_rate):
+        # Definiamo una durata fissa (ad esempio, 1 secondo)
+        fixed_length = 1  # in secondi
+        num_samples = int(fixed_length * sample_rate)
 
-        return mfcc, label
+        if waveform.size(1) > num_samples:
+            waveform = waveform[:, :num_samples]
+        else:
+            padding = num_samples - waveform.size(1)
+            waveform = torch.nn.functional.pad(waveform, (0, padding))
 
-# Caricamento del Dataset
-dataset = SpeechCommandsDataset(data_path, keywords)
-train_data, test_data = train_test_split(dataset, test_size=0.2, random_state=42)
-train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=2)
-test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False, num_workers=2)
+        return waveform
 
-# Definizione del Modello MLP
-class MLPKeywordSpotting(nn.Module):
-    def __init__(self, input_size, num_classes):
-        super(MLPKeywordSpotting, self).__init__()
-        self.fc1 = nn.Linear(input_size, 256)
-        self.relu1 = nn.ReLU()
-        self.fc2 = nn.Linear(256, 128)
-        self.relu2 = nn.ReLU()
-        self.fc3 = nn.Linear(128, num_classes)
+# Trasformazione MFCC
+mfcc_transform = T.MFCC(
+    sample_rate=16000,
+    n_mfcc=40,
+    melkwargs={
+        'n_fft': 1024,
+        'hop_length': 512,
+        'n_mels': 40,
+    }
+)
+
+# Inizializzazione del dataset e del DataLoader
+dataset = SpeechCommandsDataset(
+    root_dir='speech_commands',  # Sostituisci con il percorso corretto
+    transform=mfcc_transform
+)
+
+batch_size = 32
+dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+
+# Definizione del modello MLP
+# Otteniamo un campione per determinare la dimensione dell'input
+sample_features, _ = dataset[0]
+input_size = sample_features.numel()  # Numero totale di elementi
+num_classes = len(dataset.commands)
+
+class MLP(nn.Module):
+    def __init__(self, input_size, hidden_sizes, num_classes):
+        super(MLP, self).__init__()
+        layers = []
+        in_size = input_size
+
+        for h in hidden_sizes:
+            layers.append(nn.Linear(in_size, h))
+            layers.append(nn.ReLU())
+            in_size = h
+
+        layers.append(nn.Linear(in_size, num_classes))
+        layers.append(nn.LogSoftmax(dim=1))  # Per la classificazione multi-classe
+
+        self.model = nn.Sequential(*layers)
 
     def forward(self, x):
-        x = self.fc1(x)
-        x = self.relu1(x)
-        x = self.fc2(x)
-        x = self.relu2(x)
-        x = self.fc3(x)
-        return x
+        return self.model(x)
 
-# Ottieni la dimensione dell'input
-sample_mfcc, _ = dataset[0]
-input_size = sample_mfcc.shape[0]
-num_classes = len(keywords)
+model = MLP(input_size=input_size, hidden_sizes=[128, 64], num_classes=num_classes)
 
-# Inizializza il modello
-model = MLPKeywordSpotting(input_size, num_classes).to(device)
-
-# Definizione della funzione di perdita e dell'ottimizzatore
-criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-
-# Funzione per addestrare il modello
-def train_model(model, train_loader, criterion, optimizer, num_epochs):
-    model.train()
-    for epoch in range(num_epochs):
-        running_loss = 0.0
-        for inputs, labels in train_loader:
-            inputs = inputs.to(device)
-            labels = labels.to(device)
-
-            # Azzeramento dei gradienti
-            optimizer.zero_grad()
-
-            # Forward pass
-            outputs = model(inputs)
-            loss = criterion(outputs, labels)
-
-            # Backward pass e ottimizzazione
-            loss.backward()
-            optimizer.step()
-
-            running_loss += loss.item() * inputs.size(0)
-
-        epoch_loss = running_loss / len(train_loader.dataset)
-        print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {epoch_loss:.4f}')
-
-# Funzione per testare il modello
-def test_model(model, test_loader):
-    model.eval()
-    correct = 0
-    total = 0
-    with torch.no_grad():
-        for inputs, labels in test_loader:
-            inputs = inputs.to(device)
-            labels = labels.to(device)
-
-            outputs = model(inputs)
-            _, predicted = torch.max(outputs.data, 1)
-
-            total += labels.size(0)
-            correct += (predicted == labels).sum().item()
-
-    accuracy = (100 * correct / total)
-    print(f'Accuracy of the model on the test set: {accuracy:.2f}%')
+criterion = nn.NLLLoss()
+optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 # Addestramento del modello
-train_model(model, train_loader, criterion, optimizer, num_epochs)
+num_epochs = 10
 
-# Test del modello
-test_model(model, test_loader)
+for epoch in range(num_epochs):
+    total_loss = 0
+    for features, labels in dataloader:
+        # Appiattiamo le features
+        inputs = features.view(features.size(0), -1)
+        labels = labels.long()
 
-# Salvataggio del modello
-torch.save(model.state_dict(), 'mlp_kws.pth')
+        outputs = model(inputs)
+        loss = criterion(outputs, labels)
 
-# Quantizzazione post-addestramento
-def quantize_model(model, test_loader):
-    model.eval()
-    model_int8 = torch.quantization.quantize_dynamic(
-        model, {nn.Linear}, dtype=torch.qint8
-    )
-    return model_int8
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
 
-# Quantizza il modello
-model_int8 = quantize_model(model, test_loader)
+        total_loss += loss.item()
 
-# Test del modello quantizzato
-test_model(model_int8, test_loader)
+    avg_loss = total_loss / len(dataloader)
+    print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {avg_loss:.4f}")
 
-# Esportazione dei pesi quantizzati per l'MCU
-def export_weights(model, file_path):
-    weights = {}
-    for name, param in model.named_parameters():
-        weights[name] = param.detach().cpu().numpy()
+# Salvataggio dei pesi del modello
+# a. Salva l'intero modello
+torch.save(model.state_dict(), 'mlp_speech_commands.pth')
 
-    # Salva i pesi in un file .npz
-    np.savez_compressed(file_path, **weights)
-    print(f'Weights exported to {file_path}')
+# b. Estrai e salva i pesi per l'uso in C
+weights = {}
+for name, param in model.named_parameters():
+    weights[name] = param.detach().numpy()
 
-export_weights(model_int8, 'mlp_kws_weights_quantized.npz')
+# c. Salva i pesi in file di testo
+for name, weight in weights.items():
+    filename = f"{name.replace('.', '_')}.txt"
+    np.savetxt(filename, weight.flatten(), delimiter=',')
+    print(f"Pesi del layer '{name}' salvati in '{filename}'")
+
+# (Opzionale) Binarizzazione dei pesi
+# Se desideri binarizzare i pesi, decommenta le seguenti righe:
+# for name in weights:
+#     weights[name] = np.where(weights[name] >= 0, 1, -1)
+#     # Salva nuovamente i pesi binarizzati
+#     filename = f"{name.replace('.', '_')}_binarized.txt"
+#     np.savetxt(filename, weights[name].flatten(), delimiter=',')
+#     print(f"Pesi binarizzati del layer '{name}' salvati in '{filename}'")
