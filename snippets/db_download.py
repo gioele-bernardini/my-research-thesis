@@ -3,29 +3,39 @@
 import os
 import urllib.request
 import tarfile
+import sys
 
-# URL del dataset
+# URL of the dataset
 url = "http://download.tensorflow.org/data/speech_commands_v0.02.tar.gz"
 
-# Percorso di destinazione
+# Destination path
 data_path = "./speech_commands/"
 os.makedirs(data_path, exist_ok=True)
 
-# Nome del file scaricato
+# Name of the downloaded file
 filename = "speech_commands_v0.02.tar.gz"
 
-# Scarica il dataset
-print("Downloading Speech Commands Dataset...")
-urllib.request.urlretrieve(url, filename)
-print("Download completato.")
+# Progress bar function
+def progress_hook(block_num, block_size, total_size):
+    downloaded = block_num * block_size
+    percentage = downloaded / total_size * 100
+    progress = int(50 * downloaded / total_size)
+    bar = '[' + '#' * progress + '-' * (50 - progress) + ']'
+    sys.stdout.write(f"\rDownloading {bar} {percentage:.2f}%")
+    sys.stdout.flush()
 
-# Estrai il file
+# Download the dataset with progress bar
+print("Downloading Speech Commands Dataset...")
+urllib.request.urlretrieve(url, filename, reporthook=progress_hook)
+print("\nDownload completed.")
+
+# Extract the compressed file
 print("Extracting files...")
 with tarfile.open(filename, "r:gz") as tar:
     tar.extractall(path=data_path)
-print("Estrazione completata.")
+print("Extraction completed.")
 
-# Rimuovi il file compresso
+# Remove the compressed file
 os.remove(filename)
-print("File compresso rimosso.")
+print("Compressed file removed.")
 
