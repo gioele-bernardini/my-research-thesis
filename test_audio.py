@@ -5,17 +5,17 @@ Script to record audio from the microphone and display its waveform.
 
 Dependencies:
 - PortAudio development files:
-    - Install via package manager (e.g., for Ubuntu/Debian):
-        sudo apt-get update
-        sudo apt-get install portaudio19-dev python3-pyaudio
-    - Required for audio input/output functionality.
+  - Install via package manager (e.g., for Ubuntu/Debian):
+    sudo apt-get update
+    sudo apt-get install portaudio19-dev python3-pyaudio
+  - Required for audio input/output functionality.
 
 - Python packages:
-    - sounddevice
-    - matplotlib
-    - numpy
-    - Install via pip:
-        pip install sounddevice matplotlib numpy
+  - sounddevice
+  - matplotlib
+  - numpy
+  - Install via pip:
+    pip install sounddevice matplotlib numpy
 
 Usage:
 - Ensure that the necessary dependencies are installed.
