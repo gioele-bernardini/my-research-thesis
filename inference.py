@@ -7,8 +7,9 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset
 import numpy as np
 
-# Keywords to recognize
-keywords = ['yes', 'no', 'up', 'down', 'left', 'right', 'on', 'off', 'stop', 'go']
+# Load classes previously saved during the training phase
+with open('commands_list.txt', 'r') as f:
+  keywords = [line.strip() for line in f]
 
 # Path to the dataset
 data_path = './speech_commands/'
@@ -35,7 +36,6 @@ class SpeechCommandsTestDataset(Dataset):
     
   def __getitem__(self, idx):
     waveform, sample_rate = torchaudio.load(self.data[idx])
-    # Preprocess waveform to have a fixed length as in training
     waveform = self._preprocess_audio(waveform, sample_rate)
     if self.transform:
       waveform = self.transform(waveform)

@@ -74,6 +74,11 @@ dataset = SpeechCommandsDataset(
   transform=mfcc_transform
 )
 
+# Save commands for future use in the inference phase
+with open('commands_list.txt', 'w') as f:
+    for command in dataset.commands:
+        f.write(command + '\n')
+
 batch_size = 32
 dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
