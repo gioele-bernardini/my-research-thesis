@@ -9,11 +9,14 @@ import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 
-# Definition of the custom dataset
+# Definizione delle parole chiave
+keywords = ['yes', 'no', 'up', 'down', 'left', 'right', 'on', 'off', 'stop', 'go']
+
+# Classe Dataset personalizzata
 class SpeechCommandsDataset(Dataset):
-  def __init__(self, root_dir, transform=None):
+  def __init__(self, root_dir, keywords, transform=None):
     self.root_dir = root_dir
-    self.commands = sorted(os.listdir(root_dir))
+    self.commands = keywords  # Utilizza solo le 10 parole chiave
     self.all_files = []
     self.labels = []
     self.transform = transform
@@ -34,7 +37,7 @@ class SpeechCommandsDataset(Dataset):
     label = self.labels[idx]
     waveform, sample_rate = torchaudio.load(audio_path)
 
-    # Preprocessing to standardize the duration of the audio files
+    # Preprocessing per standardizzare la durata degli audio
     waveform = self._preprocess_audio(waveform, sample_rate)
 
     if self.transform:
@@ -45,8 +48,8 @@ class SpeechCommandsDataset(Dataset):
     return features, label
 
   def _preprocess_audio(self, waveform, sample_rate):
-    # Define a fixed duration (e.g., 1 second)
-    fixed_length = 1  # in seconds
+    # Durata fissa di 1 secondo
+    fixed_length = 1  # in secondi
     num_samples = int(fixed_length * sample_rate)
 
     if waveform.size(1) > num_samples:
@@ -57,7 +60,7 @@ class SpeechCommandsDataset(Dataset):
 
     return waveform
 
-# MFCC Transformation
+# Trasformazione MFCC
 mfcc_transform = T.MFCC(
   sample_rate=16000,
   n_mfcc=40,
@@ -68,25 +71,26 @@ mfcc_transform = T.MFCC(
   }
 )
 
-# Initialization of the dataset and DataLoader
+# Inizializzazione del dataset e DataLoader
 dataset = SpeechCommandsDataset(
-  root_dir='speech_commands',  # Replace with the correct path
+  root_dir='speech_commands',  # Sostituisci con il percorso corretto
+  keywords=keywords,
   transform=mfcc_transform
 )
 
-# Save commands for future use in the inference phase
+# Salva la lista delle classi
 with open('commands_list.txt', 'w') as f:
-    for command in dataset.commands:
-        f.write(command + '\n')
+  for command in dataset.commands:
+    f.write(command + '\n')
 
 batch_size = 32
 dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
-# Definition of the MLP model
-# Obtain a sample to determine the input size
+# Definizione del modello MLP
+# Ottieni un campione per determinare la dimensione dell'input
 sample_features, _ = dataset[0]
-input_size = sample_features.numel()  # Total number of elements
-num_classes = len(dataset.commands)
+input_size = sample_features.numel()  # Numero totale di elementi
+num_classes = len(dataset.commands)   # 10 classi
 
 class MLP(nn.Module):
   def __init__(self, input_size, hidden_sizes, num_classes):
@@ -100,7 +104,7 @@ class MLP(nn.Module):
       in_size = h
 
     layers.append(nn.Linear(in_size, num_classes))
-    layers.append(nn.LogSoftmax(dim=1))  # For multi-class classification
+    layers.append(nn.LogSoftmax(dim=1))  # Per classificazione multi-classe
 
     self.model = nn.Sequential(*layers)
 
@@ -112,13 +116,13 @@ model = MLP(input_size=input_size, hidden_sizes=[128, 64], num_classes=num_class
 criterion = nn.NLLLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-# Training the model
+# Training del modello
 num_epochs = 10
 
 for epoch in range(num_epochs):
   total_loss = 0
   for features, labels in dataloader:
-    # Flatten the features
+    # Appiattisci le caratteristiche
     inputs = features.view(features.size(0), -1)
     labels = labels.long()
 
@@ -134,27 +138,17 @@ for epoch in range(num_epochs):
   avg_loss = total_loss / len(dataloader)
   print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {avg_loss:.4f}")
 
-# Saving the model weights
-# a. Save the entire model
-torch.save(model.state_dict(), 'mlp_speech_commands.pth')
+# Salvataggio dei pesi del modello
+torch.save(model.state_dict(), 'mlp_kws_weights.pth')
 
-# b. Extract and save weights for use in C
+# Estrazione e salvataggio dei pesi per l'uso in C
 weights = {}
 for name, param in model.named_parameters():
   weights[name] = param.detach().numpy()
 
-# c. Save the weights to text files
+# Salva i pesi in file .txt
 for name, weight in weights.items():
   filename = f"{name.replace('.', '_')}.txt"
   np.savetxt(filename, weight.flatten(), delimiter=',')
   print(f"Weights of layer '{name}' saved to '{filename}'")
-
-# (Optional) Binarization of weights
-# If you want to binarize the weights, uncomment the following lines:
-# for name in weights:
-#   weights[name] = np.where(weights[name] >= 0, 1, -1)
-#   # Save the binarized weights again
-#   filename = f"{name.replace('.', '_')}_binarized.txt"
-#   np.savetxt(filename, weights[name].flatten(), delimiter=',')
-#   print(f"Binarized weights of layer '{name}' saved to '{filename}'")
 
