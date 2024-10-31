@@ -96,9 +96,10 @@ test_dataset = SpeechCommandsTestDataset(
   transform=None  # L'estrazione delle caratteristiche verrà applicata nel DataLoader
 )
 
-# Usa un sottoinsieme del dataset per il testing
+# Mescola gli indici e seleziona un sottoinsieme casuale
 test_size = 100  # Numero di campioni per il test
-test_dataset = torch.utils.data.Subset(test_dataset, range(test_size))
+test_indices = torch.randperm(len(test_dataset))[:test_size]
+test_dataset = torch.utils.data.Subset(test_dataset, test_indices)
 
 # Funzione di collate personalizzata
 def collate_fn(batch):
