@@ -138,17 +138,24 @@ for epoch in range(num_epochs):
   avg_loss = total_loss / len(dataloader)
   print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {avg_loss:.4f}")
 
-# Salvataggio dei pesi del modello
-torch.save(model.state_dict(), 'mlp_kws_weights.pth')
+# Creazione della cartella 'weights' se non esiste
+weights_dir = 'weights'
+os.makedirs(weights_dir, exist_ok=True)
+
+# Salvataggio dei pesi del modello in formato .pth
+model_pth_path = os.path.join(weights_dir, 'mlp_kws_weights.pth')
+torch.save(model.state_dict(), model_pth_path)
+print(f"Model weights saved to '{model_pth_path}'")
 
 # Estrazione e salvataggio dei pesi per l'uso in C
 weights = {}
 for name, param in model.named_parameters():
   weights[name] = param.detach().numpy()
 
-# Salva i pesi in file .txt
+# Salva i pesi in file .txt all'interno della cartella 'weights'
 for name, weight in weights.items():
   filename = f"{name.replace('.', '_')}.txt"
-  np.savetxt(filename, weight.flatten(), delimiter=',')
-  print(f"Weights of layer '{name}' saved to '{filename}'")
+  filepath = os.path.join(weights_dir, filename)
+  np.savetxt(filepath, weight.flatten(), delimiter=',')
+  print(f"Weights of layer '{name}' saved to '{filepath}'")
 

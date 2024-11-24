@@ -4,15 +4,22 @@ import os
 import torch
 import torchaudio
 import torch.nn as nn
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, Subset
 import numpy as np
 
-# Carica le classi dal file salvato durante il training
-with open('commands_list.txt', 'r') as f:
-  keywords = [line.strip() for line in f]
+# Costanti
+WEIGHTS_DIR = 'weights'  # Directory contenente i file dei pesi
+COMMANDS_LIST_FILE = 'commands_list.txt'
+DATA_PATH = './speech-commands/'
+TEST_SIZE = 100  # Numero di campioni per il test
+SAMPLE_RATE = 16000  # Frequenza di campionamento utilizzata per MFCC
 
-# Path al dataset
-data_path = './speech_commands/'
+# Carica le classi dal file salvato durante il training
+def load_keywords(filepath):
+  with open(filepath, 'r') as f:
+    return [line.strip() for line in f]
+
+keywords = load_keywords(COMMANDS_LIST_FILE)
 
 # Classe Dataset personalizzata per l'inferenza
 class SpeechCommandsTestDataset(Dataset):
@@ -25,11 +32,12 @@ class SpeechCommandsTestDataset(Dataset):
     
     for label in os.listdir(data_path):
       if label in self.keywords:
-        files = os.listdir(os.path.join(data_path, label))
-        for file in files:
-          if file.endswith('.wav'):
-            self.data.append(os.path.join(data_path, label, file))
-            self.labels.append(self.classes[label])
+        label_path = os.path.join(data_path, label)
+        if os.path.isdir(label_path):
+          for file in os.listdir(label_path):
+            if file.endswith('.wav'):
+              self.data.append(os.path.join(label_path, file))
+              self.labels.append(self.classes[label])
     
   def __len__(self):
     return len(self.data)
@@ -41,7 +49,7 @@ class SpeechCommandsTestDataset(Dataset):
       waveform = self.transform(waveform)
     label = self.labels[idx]
     return waveform, label
-
+  
   def _preprocess_audio(self, waveform, sample_rate):
     # Durata fissa di 1 secondo
     fixed_length = 1  # in secondi
@@ -56,9 +64,9 @@ class SpeechCommandsTestDataset(Dataset):
     return waveform
 
 # Funzione per l'estrazione delle caratteristiche (MFCC)
-def extract_features(waveform):
+def extract_features(waveform, sample_rate=SAMPLE_RATE):
   mfcc_transform = torchaudio.transforms.MFCC(
-    sample_rate=16000,
+    sample_rate=sample_rate,
     n_mfcc=40,
     melkwargs={
       'n_fft': 1024,
@@ -89,18 +97,6 @@ class MLP(nn.Module):
   def forward(self, x):
     return self.model(x)
 
-# Preparazione del dataset di test e del DataLoader
-test_dataset = SpeechCommandsTestDataset(
-  data_path=data_path,
-  keywords=keywords,
-  transform=None  # L'estrazione delle caratteristiche verrà applicata nel DataLoader
-)
-
-# Mescola gli indici e seleziona un sottoinsieme casuale
-test_size = 100  # Numero di campioni per il test
-test_indices = torch.randperm(len(test_dataset))[:test_size]
-test_dataset = torch.utils.data.Subset(test_dataset, test_indices)
-
 # Funzione di collate personalizzata
 def collate_fn(batch):
   waveforms = []
@@ -114,62 +110,92 @@ def collate_fn(batch):
   labels = torch.tensor(labels)
   return waveforms, labels
 
-test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False, collate_fn=collate_fn)
-
-# Inizializzazione del modello
-sample_waveform, _ = test_dataset[0]
-sample_features = extract_features(sample_waveform)
-input_size = sample_features.numel()
-
-num_classes = len(keywords)  # 10 classi
-hidden_sizes = [128, 64]
-
-model = MLP(input_size=input_size, hidden_sizes=hidden_sizes, num_classes=num_classes)
-
 # Funzione per caricare i pesi dai file .txt
-def load_weights_from_txt(model):
+def load_weights_from_txt(model, weights_dir):
   for name, param in model.named_parameters():
     # Genera il nome del file basato sul nome del parametro
     filename = f"{name.replace('.', '_')}.txt"
-    if os.path.exists(filename):
-      # Carica i pesi dal file
-      weights = np.loadtxt(filename, delimiter=',')
-      # Rimodella i pesi per adattarsi alla forma del parametro
-      weights = weights.reshape(param.shape)
-      # Assegna i pesi al parametro
-      param.data = torch.from_numpy(weights).float()
-      print(f"Loaded weights for '{name}' from '{filename}'")
+    filepath = os.path.join(weights_dir, filename)
+    if os.path.exists(filepath):
+      try:
+        # Carica i pesi dal file
+        weights = np.loadtxt(filepath, delimiter=',')
+        # Rimodella i pesi per adattarsi alla forma del parametro
+        weights = weights.reshape(param.shape)
+        # Assegna i pesi al parametro
+        param.data = torch.from_numpy(weights).float()
+        print(f"Loaded weights for '{name}' from '{filepath}'")
+      except Exception as e:
+        print(f"Error loading weights for '{name}' from '{filepath}': {e}")
     else:
-      print(f"File '{filename}' not found. Unable to load weights for '{name}'.")
+      print(f"File '{filepath}' not found. Unable to load weights for '{name}'.")
 
-# Carica i pesi dal file .txt
-load_weights_from_txt(model)
+# Preparazione del dataset di test e del DataLoader
+def prepare_test_loader(data_path, keywords, test_size, batch_size=1):
+  test_dataset = SpeechCommandsTestDataset(
+    data_path=data_path,
+    keywords=keywords,
+    transform=None  # L'estrazione delle caratteristiche verrà applicata nel DataLoader
+  )
 
-# Imposta il modello in modalità valutazione
-model.eval()
+  # Mescola gli indici e seleziona un sottoinsieme casuale
+  if test_size > len(test_dataset):
+    raise ValueError(f"test_size {test_size} supera la dimensione del dataset {len(test_dataset)}")
+  
+  test_indices = torch.randperm(len(test_dataset))[:test_size]
+  test_subset = Subset(test_dataset, test_indices)
+  
+  test_loader = DataLoader(test_subset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
+  return test_loader
 
-# Mappatura dagli indici alle classi
-idx_to_class = {idx: word for idx, word in enumerate(keywords)}
+# Inizializzazione del modello
+def initialize_model(test_dataset, hidden_sizes, num_classes):
+  sample_waveform, _ = test_dataset[0]
+  sample_features = extract_features(sample_waveform)
+  input_size = sample_features.numel()
+  model = MLP(input_size=input_size, hidden_sizes=hidden_sizes, num_classes=num_classes)
+  return model
 
-# Esecuzione dell'inferenza
-correct = 0
-total = 0
+# Funzione principale di inferenza
+def run_inference():
+  # Preparazione del DataLoader
+  test_loader = prepare_test_loader(DATA_PATH, keywords, TEST_SIZE)
 
-with torch.no_grad():
-  for inputs, labels in test_loader:
-    # Appiattire l'input come richiesto dal modello
-    inputs = inputs.view(inputs.size(0), -1)
-    outputs = model(inputs)
-    _, predicted = torch.max(outputs.data, 1)
-    total += labels.size(0)
-    correct += (predicted == labels).sum().item()
-    
-    # Stampa il risultato per ogni campione
-    actual_label = idx_to_class[labels.item()]
-    predicted_label = idx_to_class[predicted.item()]
-    print(f'Actual: {actual_label}, Predicted: {predicted_label}')
+  # Inizializzazione del modello
+  sample_waveform, _ = test_loader.dataset.dataset[test_loader.dataset.indices[0]]
+  model = initialize_model(test_loader.dataset.dataset, hidden_sizes=[128, 64], num_classes=len(keywords))
 
-# Calcola e stampa l'accuratezza complessiva
-accuracy = 100 * correct / total
-print(f'\nInference Accuracy on Test Data: {accuracy:.2f}%')
+  # Carica i pesi dal file .txt
+  load_weights_from_txt(model, WEIGHTS_DIR)
+
+  # Imposta il modello in modalità valutazione
+  model.eval()
+
+  # Mappatura dagli indici alle classi
+  idx_to_class = {idx: word for idx, word in enumerate(keywords)}
+
+  # Esecuzione dell'inferenza
+  correct = 0
+  total = 0
+  
+  with torch.no_grad():
+    for inputs, labels in test_loader:
+      # Appiattire l'input come richiesto dal modello
+      inputs = inputs.view(inputs.size(0), -1)
+      outputs = model(inputs)
+      _, predicted = torch.max(outputs.data, 1)
+      total += labels.size(0)
+      correct += (predicted == labels).sum().item()
+      
+      # Stampa il risultato per ogni campione
+      actual_label = idx_to_class[labels.item()]
+      predicted_label = idx_to_class[predicted.item()]
+      print(f'Actual: {actual_label}, Predicted: {predicted_label}')
+
+  # Calcola e stampa l'accuratezza complessiva
+  accuracy = 100 * correct / total
+  print(f'\nInference Accuracy on Test Data: {accuracy:.2f}%')
+
+if __name__ == '__main__':
+  run_inference()
 
