@@ -117,7 +117,8 @@ def run_live_inference():
   try:
     while True:
       # Registra audio dal microfono
-      print("Please speak a keyword...")
+      # print("Please speak a keyword...")
+
       audio = sd.rec(int(DURATION * SAMPLE_RATE), samplerate=SAMPLE_RATE, channels=1, dtype='float32')
       sd.wait()  # Attende che la registrazione sia terminata
       waveform = torch.from_numpy(audio.T)
