@@ -7,7 +7,7 @@ import torchvision
 import torchvision.transforms as transforms
 
 # Device configuration
-device = torch.device('cuda' if torch.cuda_is_available() else 'cpu')
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # Hyper-parameters
 input_size = 784  # 28 x 28 pixels
@@ -21,14 +21,14 @@ learning_rate = 0.001
 train_dataset = torchvision.datasets.MNIST(
   root='./MNIST-data/',
   train=True,
-  transform=transforms.ToTensor,
+  transform=transforms.ToTensor(),
   download=True
 )
 
 test_dataset = torchvision.datasets.MNIST(
   root='./MNIST-data/',
   train=False,
-  transform=transforms.ToTensor
+  transform=transforms.ToTensor()
 )
 
 # Data loader
