@@ -17,7 +17,7 @@ TRAIN_SIZE = 800  # Number of samples for training
 TEST_SIZE = 200   # Number of samples for testing
 BATCH_SIZE = 32
 EPOCHS = 20
-LEARNING_RATE = 0.001
+LEARNING_RATE = 0.0001  # Lower learning rate for stability
 SAMPLE_RATE = 16000  # Sampling rate used for MFCC
 
 # Device configuration
@@ -47,7 +47,7 @@ class SpeechCommandsDataset(Dataset):
             if file.endswith('.wav'):
               self.data.append(os.path.join(label_path, file))
               self.labels.append(self.classes[label])
-    
+  
   def __len__(self):
     return len(self.data)
     
@@ -86,30 +86,39 @@ def extract_features(waveform, sample_rate=SAMPLE_RATE):
   mfcc = mfcc_transform(waveform)
   return mfcc
 
+# Custom Binarization Function with STE
+class BinarizeFunction(torch.autograd.Function):
+  @staticmethod
+  def forward(ctx, input):
+    ctx.save_for_backward(input)
+    return input.sign()
+  
+  @staticmethod
+  def backward(ctx, grad_output):
+    input, = ctx.saved_tensors
+    grad_input = grad_output.clone()
+    # Define gradient where |input| < 1
+    grad_mask = (input.abs() < 1).float()
+    grad_input *= grad_mask
+    return grad_input
+
+binarize = BinarizeFunction.apply
+
 # Custom Binarized Linear Layer with STE
 class BinarizedLinear(nn.Module):
   def __init__(self, in_features, out_features, bias=True):
     super(BinarizedLinear, self).__init__()
-    self.in_features = in_features
-    self.out_features = out_features
     self.fc = nn.Linear(in_features, out_features, bias)
-
+  
   def forward(self, x):
-    # Binarize weights using sign function with STE
-    binary_weights = self.binarize(self.fc.weight)
+    # Binarize weights using the custom binarization function with STE
+    binary_weights = binarize(self.fc.weight)
     if self.fc.bias is not None:
       return nn.functional.linear(x, binary_weights, self.fc.bias)
     else:
       return nn.functional.linear(x, binary_weights)
 
-  @staticmethod
-  def binarize(weights):
-    # Binarize weights to -1 and +1
-    binary_weights = weights.sign()
-    binary_weights[binary_weights == 0] = 1  # Handle zero weights
-    return binary_weights
-
-# Define the Binarized MLP Model
+# Define the Binarized MLP Model with Batch Normalization
 class BinarizedMLP(nn.Module):
   def __init__(self, input_size, hidden_sizes, num_classes):
     super(BinarizedMLP, self).__init__()
@@ -117,10 +126,12 @@ class BinarizedMLP(nn.Module):
     in_size = input_size
 
     for h in hidden_sizes:
+      layers.append(nn.BatchNorm1d(in_size))
       layers.append(BinarizedLinear(in_size, h))
       layers.append(nn.ReLU())
       in_size = h
 
+    layers.append(nn.BatchNorm1d(in_size))
     layers.append(BinarizedLinear(in_size, num_classes))
     layers.append(nn.LogSoftmax(dim=1))  # For multi-class classification
 
@@ -187,24 +198,29 @@ def train(model, train_loader, criterion, optimizer, epoch):
   for inputs, labels in loop:
     inputs, labels = inputs.to(device), labels.to(device)
 
-    # Debug: Print input shape before view
-    print(f"Input shape before view: {inputs.shape}")  # (batch_size, n_mfcc, time_steps)
-
     # Ensure inputs are reshaped correctly
+    # Debug: Print input shape before view
+    # print(f"Input shape before view: {inputs.shape}")  # (batch_size, n_mfcc, time_steps)
+
+    # Reshape
     inputs = inputs.view(inputs.size(0), -1)  # (batch_size, input_size)
 
     # Debug: Print input shape after view
-    print(f"Input shape after view: {inputs.shape}")  # (batch_size, input_size)
+    # print(f"Input shape after view: {inputs.shape}")  # (batch_size, input_size)
 
     optimizer.zero_grad()
     outputs = model(inputs)
 
     # Debug: Print output shape
-    print(f"Output shape: {outputs.shape}")  # (batch_size, num_classes)
+    # print(f"Output shape: {outputs.shape}")  # (batch_size, num_classes)
 
     loss = criterion(outputs, labels)
     loss.backward()
     optimizer.step()
+
+    # Weight clipping
+    for param in model.parameters():
+      param.data.clamp_(-1, 1)
 
     # Statistics
     running_loss += loss.item() * inputs.size(0)
@@ -230,19 +246,20 @@ def evaluate(model, test_loader, criterion):
     for inputs, labels in tqdm(test_loader, desc="Evaluating"):
       inputs, labels = inputs.to(device), labels.to(device)
 
-      # Debug: Print input shape before view
-      print(f"Input shape before view: {inputs.shape}")  # (batch_size, n_mfcc, time_steps)
-
       # Ensure inputs are reshaped correctly
+      # Debug: Print input shape before view
+      # print(f"Input shape before view: {inputs.shape}")  # (batch_size, n_mfcc, time_steps)
+
+      # Reshape
       inputs = inputs.view(inputs.size(0), -1)  # (batch_size, input_size)
 
       # Debug: Print input shape after view
-      print(f"Input shape after view: {inputs.shape}")  # (batch_size, input_size)
+      # print(f"Input shape after view: {inputs.shape}")  # (batch_size, input_size)
 
       outputs = model(inputs)
 
       # Debug: Print output shape
-      print(f"Output shape: {outputs.shape}")  # (batch_size, num_classes)
+      # print(f"Output shape: {outputs.shape}")  # (batch_size, num_classes)
 
       loss = criterion(outputs, labels)
 
@@ -256,6 +273,16 @@ def evaluate(model, test_loader, criterion):
   print(f"Test Loss: {epoch_loss:.4f}, Test Accuracy: {epoch_acc:.2f}%")
   return epoch_acc
 
+# Initialize the model with proper weight initialization
+def initialize_model(input_size, hidden_sizes, num_classes):
+  model = BinarizedMLP(input_size=input_size, hidden_sizes=hidden_sizes, num_classes=num_classes)
+  for m in model.modules():
+    if isinstance(m, BinarizedLinear):
+      nn.init.xavier_uniform_(m.fc.weight)
+      if m.fc.bias is not None:
+        nn.init.zeros_(m.fc.bias)
+  return model.to(device)
+
 # Main function to run training and evaluation
 def main():
   train_loader, test_loader = prepare_dataloaders(DATA_PATH, keywords, TRAIN_SIZE, TEST_SIZE, BATCH_SIZE)
@@ -265,7 +292,7 @@ def main():
   sample_features = extract_features(sample_waveform)
   input_size = sample_features.numel()
   print(f"Calculated input size: {input_size}")  # Should be n_mfcc * time_steps, e.g., 40 * 32 = 1280
-  model = BinarizedMLP(input_size=input_size, hidden_sizes=[128, 64], num_classes=len(keywords)).to(device)
+  model = initialize_model(input_size=input_size, hidden_sizes=[256, 128, 64], num_classes=len(keywords))
 
   # Define loss and optimizer
   criterion = nn.NLLLoss()
