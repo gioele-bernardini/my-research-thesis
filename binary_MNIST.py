@@ -91,6 +91,7 @@ class NeuralNetwork(nn.Module):
     out = self.bn1(out)
     out = self.htanh1(out)
 
+    # out = self.l2.forward(out)
     out = self.l2(out)
     out = self.bn2(out)
     out = self.htanh2(out)
@@ -101,6 +102,7 @@ class NeuralNetwork(nn.Module):
 
     out = self.l4(out)
 
+    # Return logits
     return out
 
 # Model, loss function and optimizer
@@ -129,7 +131,7 @@ for epoch in range(num_epochs):
     # optimizer.step() -> this leads to error
 
     # Straight through estimator
-    # This is used to update the weights before binarizing them!
+    # This is used to update the weights before binarizing them
     for p in list (model.parameters()):
       if hasattr(p, 'org'):
         p.data.copy_(p.org)
