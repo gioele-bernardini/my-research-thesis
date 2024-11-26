@@ -44,6 +44,7 @@ test_loader = torch.utils.data.DataLoader(
 )
 
 def binarize(tensor):
+  # Returns the sign of the vector (standard binarization)
   return tensor.sign()
 
 class BinarizeLinear(nn.Linear):
@@ -57,7 +58,7 @@ class BinarizeLinear(nn.Linear):
     # binarize input
     input.data = binarize(input.data)
 
-    # Binarize weight for STE phase
+    # Binarize weight AND save original ones for STE phase
     if not hasattr(self.weight, 'org'):
       self.weight.org = self.weight.data.clone()
 
