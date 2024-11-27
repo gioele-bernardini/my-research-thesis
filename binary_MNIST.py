@@ -72,7 +72,7 @@ class BinarizeLinear(nn.Linear):
         self.bias.org = self.bias.data.clone()
       self.bias.data = binarize(self.bias.org)
 
-    output = nn.functional.linear(input, self.weight, self.biar)
+    output = nn.functional.linear(input, self.weight, self.bias)
 
     return output
 
@@ -213,4 +213,7 @@ with torch.no_grad():
 
   print('Accuracy of the network on the 10000 test images: {} %.'
         .format(100 * correct / total))
+
+save_weights()
+print('Weights and Biases correctly saved')
 
