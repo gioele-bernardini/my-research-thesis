@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 
-# Libraries
 import torch
 import torch.nn as nn
 import torchvision
 import torchvision.transforms as transforms
+# To save weights
+import os
+import numpy as np
 
 # Device configuration
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -151,6 +153,47 @@ for epoch in range(num_epochs):
     if (i + 1) % 100 == 0:
       print('Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}'
             .format(epoch+1, num_epochs, i+1, len(train_loader), loss.item()))
+
+def save_weights(model, directory='binarized-weights'):
+  # Create folder if does not exist
+  if not os.path.exists(directory):
+    os.makedirs(directory)
+
+  layer_idx = 1
+  for name, layer in model.name_modules():
+    # Check if the layer is not a batch normalization one
+    if isinstance(layer, (nn.Linear, BinarizeLinear)):
+      # Name of the files for weights and biases
+      weight_file = os.path.join(directory, f'layer{layer_idx}_weights.txt')
+      bias_file = os.path.join(directory, f'layer{layer_idx}_biases.txt')
+
+      # Extract and binarize weights
+      if hasattr(layer, 'weight'):
+        if isinstance(layer, BinarizeLinear):
+          #
+          weights = binarize(layer.weight.org).cpu().numpy()
+          fmt = '%d'
+        else:
+          # Linear layer, keep real weights
+          weights = layer.weight.data.cpu().numpy()
+          fmt = '%.6f'
+        
+        np.savetxt(weight_file, weights, fmt=fmt)
+
+        # Estrazione e binarizzazione dei bias
+    if hasattr(layer, 'bias') and layer.bias is not None:
+      if isinstance(layer, BinarizeLinear):
+        # I bias sono binarizzati, accediamo a layer.bias.org
+        biases = binarize(layer.bias.org).cpu().numpy()
+        fmt = '%d'  # Formato per valori binari (-1, 1)
+      else:
+        # Per nn.Linear, mantieni i bias reali
+        biases = layer.bias.data.cpu().numpy()
+        fmt = '%.6f'  # Formato per valori reali
+      # Salva i bias nel file
+      np.savetxt(bias_file, biases, fmt=fmt)
+
+    layer_idx += 1
 
 # Finally, test the model
 model.eval()
