@@ -48,25 +48,31 @@ def binarize(tensor):
   return tensor.sign()
 
 class BinarizeLinear(nn.Linear):
-  def __init__(self, in_features, out_features):
-    super(BinarizeLinear, self).__init__(in_features, out_features)
+  def __init__(self, in_features, out_features, bias=True):
+    super(BinarizeLinear, self).__init__(in_features, out_features, bias)
+    
+    # Save a copy of the original biases for STE
+    if self.bias is not None:
+      self.bias.org = self.bias.data.clone()
 
   def forward(self, input):
-    # Matrices default moltiplication
-    # input * weight
-
-    # binarize input
+    # Binarize *input*
     input.data = binarize(input.data)
 
-    # Binarize weight AND save original ones for STE phase
+    # Binarize *weights* and save original ones for STE
     if not hasattr(self.weight, 'org'):
       self.weight.org = self.weight.data.clone()
-
     self.weight.data = binarize(self.weight.org)
 
-    res = nn.functional.linear(input, self.weight)
+    # Binarize *biases* and save original ones for STE
+    if self.bias is not None:
+      if not hasattr(self.bias, 'org'):
+        self.bias.org = self.bias.data.clone()
+      self.bias.data = binarize(self.bias.org)
 
-    return res
+    output = nn.functional.linear(input, self.weight, self.biar)
+
+    return output
 
 class NeuralNetwork(nn.Module):
   def __init__(self, input_size, hidden_size, num_classes):
