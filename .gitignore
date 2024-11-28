@@ -1,6 +1,8 @@
 speech_commands/
 MNIST-data/
 
+debug*
+
 # Recorder audio
 *.wav
 
