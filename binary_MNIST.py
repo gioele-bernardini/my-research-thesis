@@ -4,7 +4,6 @@ import torch
 import torch.nn as nn
 import torchvision
 import torchvision.transforms as transforms
-# To save weights
 import os
 import numpy as np
 
@@ -46,41 +45,36 @@ test_loader = torch.utils.data.DataLoader(
 )
 
 def binarize(tensor):
-  # Returns the sign of the tensor (2d-matrix) (standard binarization)
+  # Returns the sign of the tensor (standard binarization)
   return tensor.sign()
 
 class BinarizeLinear(nn.Linear):
   def __init__(self, in_features, out_features, bias=True):
     super(BinarizeLinear, self).__init__(in_features, out_features, bias)
-    
-    # Save a copy of the original biases for STE
-    if self.bias is not None:
+    # Save a copy of the original weights and biases for STE
+    if not hasattr(self.weight, 'org'):
+      self.weight.org = self.weight.data.clone()
+    if self.bias is not None and not hasattr(self.bias, 'org'):
       self.bias.org = self.bias.data.clone()
 
   def forward(self, input):
-    # Binarize *input*
+    # Binarize input
     input.data = binarize(input.data)
 
-    # Binarize *weights* and save original ones for STE
-    if not hasattr(self.weight, 'org'):
-      self.weight.org = self.weight.data.clone()
+    # Binarize weights and biases
     self.weight.data = binarize(self.weight.org)
-
-    # Binarize *biases* and save original ones for STE
     if self.bias is not None:
-      if not hasattr(self.bias, 'org'):
-        self.bias.org = self.bias.data.clone()
       self.bias.data = binarize(self.bias.org)
 
     output = nn.functional.linear(input, self.weight, self.bias)
-
     return output
 
 class NeuralNetwork(nn.Module):
   def __init__(self, input_size, hidden_size, num_classes):
     super(NeuralNetwork, self).__init__()
 
-    self.l1 = nn.Linear(input_size, hidden_size)
+    # Replace nn.Linear with BinarizeLinear for all layers
+    self.l1 = BinarizeLinear(input_size, hidden_size)
     self.bn1 = nn.BatchNorm1d(hidden_size)
     self.htanh1 = nn.Hardtanh()
 
@@ -92,14 +86,13 @@ class NeuralNetwork(nn.Module):
     self.bn3 = nn.BatchNorm1d(300)
     self.htanh3 = nn.Hardtanh()
 
-    self.l4 = nn.Linear(300, num_classes)
+    self.l4 = BinarizeLinear(300, num_classes)
 
   def forward(self, x):
     out = self.l1(x)
     out = self.bn1(out)
     out = self.htanh1(out)
 
-    # out = self.l2.forward(out)
     out = self.l2(out)
     out = self.bn2(out)
     out = self.htanh2(out)
@@ -109,8 +102,6 @@ class NeuralNetwork(nn.Module):
     out = self.htanh3(out)
 
     out = self.l4(out)
-
-    # Return logits
     return out
 
 # Model, loss function and optimizer
@@ -121,7 +112,6 @@ criterion = nn.CrossEntropyLoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
 # Train the model
-# Does *not* train, but sets the mode for the model
 model.train()
 
 for epoch in range(num_epochs):
@@ -136,64 +126,52 @@ for epoch in range(num_epochs):
     # Backward and optimize
     optimizer.zero_grad()
     loss.backward()
-    # optimizer.step() -> this leads to error
 
-    # Straight through estimator
-    # This is used to update the weights before binarizing them
-    for p in list (model.parameters()):
+    # Straight Through Estimator
+    # Restore original weights before optimizer step
+    for p in list(model.parameters()):
       if hasattr(p, 'org'):
         p.data.copy_(p.org)
 
     optimizer.step()
 
+    # Clamping weights and biases
     for p in list(model.parameters()):
       if hasattr(p, 'org'):
         p.org.copy_(p.data.clamp_(-1, 1))
 
     if (i + 1) % 100 == 0:
       print('Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}'
-            .format(epoch+1, num_epochs, i+1, len(train_loader), loss.item()))
+          .format(epoch+1, num_epochs, i+1, len(train_loader), loss.item()))
 
 def save_weights(model, directory='binarized-weights'):
-  # Create folder if does not exist
+  # Create folder if it does not exist
   if not os.path.exists(directory):
     os.makedirs(directory)
 
   layer_idx = 1
-  for name, layer in model.name_modules():
-    # Check if the layer is not a batch normalization one
-    if isinstance(layer, (nn.Linear, BinarizeLinear)):
-      # Name of the files for weights and biases
+  for name, layer in model.named_children():
+    # Check if the layer is a BinarizeLinear layer
+    if isinstance(layer, BinarizeLinear):
+      # Names of the files for weights and biases
       weight_file = os.path.join(directory, f'layer{layer_idx}_weights.txt')
       bias_file = os.path.join(directory, f'layer{layer_idx}_biases.txt')
 
       # Extract and binarize weights
       if hasattr(layer, 'weight'):
-        if isinstance(layer, BinarizeLinear):
-          #
-          weights = binarize(layer.weight.org).cpu().numpy()
-          fmt = '%d'
-        else:
-          # Linear layer, keep real weights
-          weights = layer.weight.data.cpu().numpy()
-          fmt = '%.6f'
-        
+        weights = binarize(layer.weight.org).cpu().numpy()
+        fmt = '%d'
         np.savetxt(weight_file, weights, fmt=fmt)
 
-        # Estrazione e binarizzazione dei bias
-    if hasattr(layer, 'bias') and layer.bias is not None:
-      if isinstance(layer, BinarizeLinear):
-        # I bias sono binarizzati, accediamo a layer.bias.org
+      # Extract and binarize biases
+      if hasattr(layer, 'bias') and layer.bias is not None:
         biases = binarize(layer.bias.org).cpu().numpy()
-        fmt = '%d'  # Formato per valori binari (-1, 1)
-      else:
-        # Per nn.Linear, mantieni i bias reali
-        biases = layer.bias.data.cpu().numpy()
-        fmt = '%.6f'  # Formato per valori reali
-      # Salva i bias nel file
-      np.savetxt(bias_file, biases, fmt=fmt)
+        fmt = '%d'
+        np.savetxt(bias_file, biases, fmt=fmt)
 
-    layer_idx += 1
+      layer_idx += 1
+
+  print('Weights and biases saved in directory:', directory)
 
 # Finally, test the model
 model.eval()
@@ -212,8 +190,7 @@ with torch.no_grad():
     correct += (predicted == labels).sum().item()
 
   print('Accuracy of the network on the 10000 test images: {} %.'
-        .format(100 * correct / total))
+      .format(100 * correct / total))
 
-save_weights()
-print('Weights and Biases correctly saved')
-
+# Save binarized weights and biases
+save_weights(model)
