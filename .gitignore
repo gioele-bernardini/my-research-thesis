@@ -3,6 +3,9 @@ MNIST-data/
 
 debug*
 
+# For personal notes
+summary.md
+
 # Recorder audio
 *.wav
 
