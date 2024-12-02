@@ -264,4 +264,4 @@ with torch.no_grad():
       .format(100 * correct / total))
 
 # Salvataggio dei pesi e dei parametri di batch norm
-save_weights_and_bn_params(model)
+# save_weights_and_bn_params(model)
