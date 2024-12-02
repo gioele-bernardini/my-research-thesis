@@ -6,5 +6,3 @@ left
 right
 on
 off
-stop
-go
