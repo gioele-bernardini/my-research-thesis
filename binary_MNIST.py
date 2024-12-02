@@ -144,34 +144,51 @@ for epoch in range(num_epochs):
       print('Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}'
           .format(epoch+1, num_epochs, i+1, len(train_loader), loss.item()))
 
-def save_weights(model, directory='binarized-weights'):
+def save_weights_and_bn_params(model, directory='binarized-weights'):
   # Create folder if it does not exist
   if not os.path.exists(directory):
     os.makedirs(directory)
 
-  layer_idx = 1
   for name, layer in model.named_children():
     # Check if the layer is a BinarizeLinear layer
     if isinstance(layer, BinarizeLinear):
       # Names of the files for weights and biases
-      weight_file = os.path.join(directory, f'layer{layer_idx}_weights.txt')
-      bias_file = os.path.join(directory, f'layer{layer_idx}_biases.txt')
+      weight_file = os.path.join(directory, f'{name}_weights.txt')
+      bias_file = os.path.join(directory, f'{name}_biases.txt')
 
       # Extract and binarize weights
       if hasattr(layer, 'weight'):
-        weights = binarize(layer.weight.org).cpu().numpy()
+        weights = binarize(layer.weight.org).detach().cpu().numpy()
         fmt = '%d'
         np.savetxt(weight_file, weights, fmt=fmt)
 
       # Extract and binarize biases
       if hasattr(layer, 'bias') and layer.bias is not None:
-        biases = binarize(layer.bias.org).cpu().numpy()
+        biases = binarize(layer.bias.org).detach().cpu().numpy()
         fmt = '%d'
         np.savetxt(bias_file, biases, fmt=fmt)
 
-      layer_idx += 1
+    # Check if the layer is a BatchNorm1d layer
+    elif isinstance(layer, nn.BatchNorm1d):
+      # Names of the files for batch norm parameters
+      mean_file = os.path.join(directory, f'{name}_running_mean.txt')
+      var_file = os.path.join(directory, f'{name}_running_var.txt')
+      gamma_file = os.path.join(directory, f'{name}_gamma.txt')
+      beta_file = os.path.join(directory, f'{name}_beta.txt')
 
-  print('Weights and biases saved in directory:', directory)
+      # Extract parameters
+      running_mean = layer.running_mean.detach().cpu().numpy()
+      running_var = layer.running_var.detach().cpu().numpy()
+      gamma = layer.weight.detach().cpu().numpy()  # gamma (weight)
+      beta = layer.bias.detach().cpu().numpy()   # beta (bias)
+
+      # Save parameters to files
+      np.savetxt(mean_file, running_mean)
+      np.savetxt(var_file, running_var)
+      np.savetxt(gamma_file, gamma)
+      np.savetxt(beta_file, beta)
+
+  print('Weights, biases, and batch norm parameters saved in directory:', directory)
 
 # Finally, test the model
 model.eval()
@@ -192,5 +209,5 @@ with torch.no_grad():
   print('Accuracy of the network on the 10000 test images: {} %.'
       .format(100 * correct / total))
 
-# Save binarized weights and biases
-save_weights(model)
+# Save binarized weights, biases, and batch norm parameters
+save_weights_and_bn_params(model)
