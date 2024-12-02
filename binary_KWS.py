@@ -167,6 +167,7 @@ hidden_size = 500  # Puoi modificarlo se necessario
 model = NeuralNetworkSimplified(input_size, hidden_size, num_classes).to(device)
 
 # Verifica che tutti i parametri richiedano gradiente
+# Debug dovuto a errori precedenti (ridondante)
 for name, param in model.named_parameters():
     print(f'{name}: requires_grad={param.requires_grad}')
 
