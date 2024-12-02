@@ -1,6 +1,9 @@
 speech_commands/
 MNIST-data/
 
+# For personal notes
+summary.md
+
 # Recorder audio
 *.wav
 
