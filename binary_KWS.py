@@ -37,6 +37,10 @@ transform = torchaudio.transforms.MelSpectrogram(
   n_mels=num_mel_bins
 )
 
+# Funzione di binarizzazione modificata per evitare zeri
+def binarize(tensor):
+  return torch.where(tensor >= 0, torch.ones_like(tensor), -torch.ones_like(tensor))
+
 # Classe Dataset personalizzata
 class SpeechCommandsDataset(torch.utils.data.Dataset):
   def __init__(self, dataset_dir, commands, transform=None):
@@ -112,11 +116,23 @@ input_size = example_data.shape[1] * example_data.shape[2] * example_data.shape[
 
 # Definizione delle funzioni per la binarizzazione
 def binarize(tensor):
-  return tensor.sign()
+  return torch.where(tensor >= 0, torch.ones_like(tensor), -torch.ones_like(tensor))
 
+# Classe BinarizeLinear con inizializzazione binarizzata
 class BinarizeLinear(nn.Linear):
   def __init__(self, in_features, out_features, bias=True):
     super(BinarizeLinear, self).__init__(in_features, out_features, bias)
+    # Inizializzazione Xavier
+    nn.init.xavier_uniform_(self.weight)
+    if self.bias is not None:
+      nn.init.constant_(self.bias, 0)
+    
+    # Binarizza i pesi e i bias dopo l'inizializzazione
+    self.weight.data = binarize(self.weight.data)
+    if self.bias is not None:
+      self.bias.data = binarize(self.bias.data)
+    
+    # Conserva i pesi originali per l'aggiornamento
     if not hasattr(self.weight, 'org'):
       self.weight.org = self.weight.data.clone()
     if self.bias is not None and not hasattr(self.bias, 'org'):
@@ -143,7 +159,17 @@ class NeuralNetwork(nn.Module):
     self.bn2 = nn.BatchNorm1d(400)
     self.htanh2 = nn.Hardtanh()
 
-    self.l3 = BinarizeLinear(400, 300)
+    # **Nuovi Layer Aggiunti**
+    self.l2_1 = BinarizeLinear(400, 350)
+    self.bn2_1 = nn.BatchNorm1d(350)
+    self.htanh2_1 = nn.Hardtanh()
+
+    self.l2_2 = BinarizeLinear(350, 300)
+    self.bn2_2 = nn.BatchNorm1d(300)
+    self.htanh2_2 = nn.Hardtanh()
+    # **Fine Nuovi Layer**
+
+    self.l3 = BinarizeLinear(300, 300)
     self.bn3 = nn.BatchNorm1d(300)
     self.htanh3 = nn.Hardtanh()
 
@@ -158,6 +184,16 @@ class NeuralNetwork(nn.Module):
     out = self.l2(out)
     out = self.bn2(out)
     out = self.htanh2(out)
+
+    # **Forward dei Nuovi Layer**
+    out = self.l2_1(out)
+    out = self.bn2_1(out)
+    out = self.htanh2_1(out)
+
+    out = self.l2_2(out)
+    out = self.bn2_2(out)
+    out = self.htanh2_2(out)
+    # **Fine Forward dei Nuovi Layer**
 
     out = self.l3(out)
     out = self.bn3(out)
