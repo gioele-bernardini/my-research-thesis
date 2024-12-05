@@ -1,5 +1,11 @@
+# Python environment
+thesis/
+
+__pycache__/
 speech_commands/
 MNIST-data/
+
+debug*
 
 # For personal notes
 summary.md
