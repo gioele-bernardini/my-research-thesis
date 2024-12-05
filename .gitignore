@@ -1,3 +1,6 @@
+# Python environment
+thesis/
+
 __pycache__/
 speech_commands/
 MNIST-data/
