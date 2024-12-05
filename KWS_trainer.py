@@ -7,38 +7,38 @@ import torchaudio
 import os
 import numpy as np
 
-# Configurazione del dispositivo
+# Device configuration
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-# Hyperparametri
-num_classes = None  # Sarà determinato in base ai comandi da caricare
-num_epochs = 20
+# Hyperparameters
+num_classes = None  # Will be determined based on the commands to load
+num_epochs = 50
 batch_size = 100
 learning_rate = 0.0001
 
-# Directory del dataset e dei comandi
+# Dataset and commands directory
 dataset_dir = './speech-commands'
 commands_file = './commands_list.txt'
 
-# Caricamento dei comandi da considerare per l'addestramento
+# Loading commands to consider for training
 with open(commands_file, 'r') as f:
   commands = f.read().splitlines()
 
 num_classes = len(commands)
 
-# Creazione di un mapping tra comandi e classi
+# Creating a mapping between commands and classes
 command_to_index = {command: idx for idx, command in enumerate(commands)}
 
-# Definizione delle trasformazioni audio
-sample_rate = 16000  # Frequenza di campionamento standard per il dataset
-num_mel_bins = 64  # Numero di bande Mel per il Mel-Spectrogram
+# Definition of audio transformations
+sample_rate = 16000  # Standard sampling rate for the dataset
+num_mel_bins = 64  # Number of Mel bands for the Mel-Spectrogram
 
 transform = torchaudio.transforms.MelSpectrogram(
   sample_rate=sample_rate,
   n_mels=num_mel_bins
 )
 
-# Funzione di binarizzazione con STE
+# Binarization function with STE
 class BinarizeSTE(torch.autograd.Function):
   @staticmethod
   def forward(ctx, input):
@@ -46,12 +46,12 @@ class BinarizeSTE(torch.autograd.Function):
 
   @staticmethod
   def backward(ctx, grad_output):
-    # Gradiente STE: passa il gradiente senza modifiche
+    # STE gradient: passes the gradient without modification
     return grad_output
 
 binarize_ste = BinarizeSTE.apply
 
-# Classe Dataset personalizzata
+# Custom Dataset class
 class SpeechCommandsDataset(torch.utils.data.Dataset):
   def __init__(self, dataset_dir, commands, transform=None):
     self.dataset_dir = dataset_dir
@@ -67,7 +67,7 @@ class SpeechCommandsDataset(torch.utils.data.Dataset):
             filepath = os.path.join(command_dir, filename)
             self.samples.append((filepath, command_to_index[command]))
       else:
-        print(f'Attenzione: La cartella {command_dir} non esiste.')
+        print(f'Warning: The folder {command_dir} does not exist.')
 
   def __len__(self):
     return len(self.samples)
@@ -76,37 +76,37 @@ class SpeechCommandsDataset(torch.utils.data.Dataset):
     filepath, label = self.samples[idx]
     waveform, sr = torchaudio.load(filepath)
 
-    # Resample se necessario
+    # Resample if necessary
     if sr != sample_rate:
       resampler = torchaudio.transforms.Resample(orig_freq=sr, new_freq=sample_rate)
       waveform = resampler(waveform)
 
-    # Uniformare la durata a 1 secondo (16000 campioni)
+    # Standardize duration to 1 second (16000 samples)
     if waveform.size(1) < sample_rate:
       padding = sample_rate - waveform.size(1)
       waveform = torch.nn.functional.pad(waveform, (0, padding))
     else:
       waveform = waveform[:, :sample_rate]
 
-    # Applicare la trasformazione
+    # Apply transformation
     if self.transform:
       features = self.transform(waveform)
       features = features.log2()  # Log-Mel Spectrogram
     else:
       features = waveform
 
-    # Normalizzazione
+    # Normalization
     features = (features - features.mean()) / (features.std() + 1e-5)
 
     return features, label
 
-# Suddivisione del dataset in training e test set
+# Splitting dataset into training and test sets
 full_dataset = SpeechCommandsDataset(dataset_dir, commands, transform=transform)
 train_size = int(0.8 * len(full_dataset))
 test_size = len(full_dataset) - train_size
 train_dataset, test_dataset = torch.utils.data.random_split(full_dataset, [train_size, test_size])
 
-# Data loader
+# Data loaders
 train_loader = torch.utils.data.DataLoader(
   dataset=train_dataset,
   batch_size=batch_size,
@@ -119,16 +119,16 @@ test_loader = torch.utils.data.DataLoader(
   shuffle=False
 )
 
-# Calcolo della dimensione dell'input
-# Il Mel-Spectrogram avrà dimensioni: (batch_size, channels, n_mels, time_steps)
+# Compute input size
+# The Mel-Spectrogram will have dimensions: (batch_size, channels, n_mels, time_steps)
 example_data, _ = next(iter(train_loader))
-input_size = example_data.shape[1] * example_data.shape[2] * example_data.shape[3]  # Correzione qui
+input_size = example_data.shape[1] * example_data.shape[2] * example_data.shape[3]  # Correction here
 
-# Classe BinarizeLinearSTE con STE
+# BinarizeLinearSTE class with STE
 class BinarizeLinearSTE(nn.Linear):
   def __init__(self, in_features, out_features, bias=True):
     super(BinarizeLinearSTE, self).__init__(in_features, out_features, bias)
-    # Inizializzazione Xavier
+    # Xavier initialization
     nn.init.xavier_uniform_(self.weight)
     if self.bias is not None:
       nn.init.constant_(self.bias, 0)
@@ -140,7 +140,7 @@ class BinarizeLinearSTE(nn.Linear):
     output = F.linear(input_bin, weight_bin, bias_bin)
     return output
 
-# Definizione della rete neurale semplificata con ulteriori fully connected layers
+# Definition of the simplified neural network with additional fully connected layers
 class NeuralNetworkSimplified(nn.Module):
   def __init__(self, input_size, hidden_size1, hidden_size2, hidden_size3, num_classes):
     super(NeuralNetworkSimplified, self).__init__()
@@ -182,17 +182,17 @@ class NeuralNetworkSimplified(nn.Module):
     out = self.l4(out)
     return out
 
-# Iperparametri del modello
-hidden_size1 = 500  # Puoi modificarlo se necessario
-hidden_size2 = 300  # Nuovo layer
-hidden_size3 = 200  # Nuovo layer
+# Model hyperparameters
+hidden_size1 = 500  # You can modify this if necessary
+hidden_size2 = 300  # New layer
+hidden_size3 = 200  # New layer
 model = NeuralNetworkSimplified(input_size, hidden_size1, hidden_size2, hidden_size3, num_classes).to(device)
 
-# Funzione di perdita e ottimizzatore
+# Loss function and optimizer
 criterion = nn.CrossEntropyLoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
-# Addestramento del modello
+# Training the model
 model.train()
 
 for epoch in range(num_epochs):
@@ -204,14 +204,14 @@ for epoch in range(num_epochs):
     outputs = model(features)
     loss = criterion(outputs, labels)
 
-    # Backward e ottimizzazione
+    # Backward and optimization
     optimizer.zero_grad()
     loss.backward()
     optimizer.step()
 
   print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {loss.item():.4f}')
 
-# Valutazione del modello
+# Evaluating the model
 model.eval()
 
 with torch.no_grad():
@@ -227,5 +227,5 @@ with torch.no_grad():
     total += labels.size(0)
     correct += (predicted == labels).sum().item()
 
-  print('Accuratezza del modello sul test set: {:.2f}%'
+  print('Model accuracy on the test set: {:.2f}%'
       .format(100 * correct / total))
