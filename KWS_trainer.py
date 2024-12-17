@@ -274,20 +274,20 @@ class NeuralNetworkSimplifiedSTE(nn.Module):
     self.l1 = BinarizeLinearSTE(input_size, hidden_size1)
     # self.l1 = BinarizeLinear(input_size, hidden_size1)
     # self.bn1 = nn.BatchNorm1d(hidden_size1)
-    self.htanh1 = nn.Hardtanh()
-    self.dropout1 = nn.Dropout(p=0.0)
+    self.htanh1 = nn.ReLU()
+    self.dropout1 = nn.Dropout(p=0.3)
 
     self.l2 = BinarizeLinearSTE(hidden_size1, hidden_size2)
     # self.l2 = BinarizeLinear(hidden_size1, hidden_size2)
     # self.bn2 = nn.BatchNorm1d(hidden_size2)
-    self.htanh2 = nn.Hardtanh()
-    self.dropout2 = nn.Dropout(p=0.0)
+    self.htanh2 = nn.ReLU()
+    self.dropout2 = nn.Dropout(p=0.3)
 
     # self.l3 = BinarizeLinear(hidden_size2, hidden_size3)
     self.l3 = BinarizeLinearSTE(hidden_size2, hidden_size3)
     # self.bn3 = nn.BatchNorm1d(hidden_size3)
-    self.htanh3 = nn.Hardtanh()
-    self.dropout3 = nn.Dropout(p=0.0)
+    self.htanh3 = nn.ReLU()
+    self.dropout3 = nn.Dropout(p=0.3)
 
     self.l4 = BinarizeLinearSTE(hidden_size3, num_classes)
     # self.l4 = BinarizeLinear(hidden_size3, num_classes)
@@ -313,9 +313,12 @@ class NeuralNetworkSimplifiedSTE(nn.Module):
     return out
 
 # Model hyperparameters
-hidden_size1 = 512  # You can modify this if necessary
-hidden_size2 = 512  # New layer
-hidden_size3 = 512  # New layer
+# 2048, dropout=0.3, ReLu => 80% on test set
+# 1024, dropout=0.3, ReLu => 77% on test set
+hidden_size1 = 1024
+hidden_size2 = 1024
+hidden_size3 = 1024
+
 model = NeuralNetworkSimplified(input_size, hidden_size1, hidden_size2, hidden_size3, num_classes).to(device)
 # model = NeuralNetworkSimplifiedSTE(input_size, hidden_size1, hidden_size2, hidden_size3, num_classes).to(device)
 
@@ -346,7 +349,7 @@ for epoch in range(num_epochs):
     loss.backward()
     optimizer.step()
 
-  print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {loss.item():.4f}, Acc: {100* correct/total:.2f}%')
+  print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {loss.item():.4f}, Acc: {100 * correct / total:.2f}%')
 
 # Evaluating the model
 model.eval()
