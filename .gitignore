@@ -15,3 +15,10 @@ summary.md
 # Recorder audio files
 *.wav
 
+# Setup for development
+.vscode/
+
+# 
+weights/
+headers/
+

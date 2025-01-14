@@ -226,6 +226,7 @@ class BinarizeLinearSTE(nn.Linear):
     output = F.linear(input_bin, weight_bin, bias_bin)
     return output
 
+# Class used for the model
 class NeuralNetworkSimplified(nn.Module):
   def __init__(self, input_size, hidden_size1, hidden_size2, hidden_size3, num_classes):
     super(NeuralNetworkSimplified, self).__init__()
@@ -240,11 +241,12 @@ class NeuralNetworkSimplified(nn.Module):
     self.htanh2 = nn.Hardtanh()
     self.dropout2 = nn.Dropout(p=0.0)
 
-    self.l3 = BinarizeLinear(hidden_size2, hidden_size3)
+    # self.l3 = BinarizeLinear(hidden_size2, hidden_size3)
+    # self.bn3 = nn.BatchNorm1d(hidden_size3)
+    # self.htanh3 = nn.Hardtanh()
+    # self.dropout3 = nn.Dropout(p=0.3)
 
-    self.bn3 = nn.BatchNorm1d(hidden_size3)
-    self.htanh3 = nn.Hardtanh()
-    self.dropout3 = nn.Dropout(p=0.0)
+    # self.l5 = nn.Linear(hidden_size3, num_classes)
     self.l4 = nn.Linear(hidden_size3, num_classes)
 
   def forward(self, x, y):
@@ -259,13 +261,14 @@ class NeuralNetworkSimplified(nn.Module):
     out = self.htanh2(out)
     out = self.dropout2(out)
 
-    out = self.l3(out)
-    out = self.bn3(out)
-    out = self.htanh3(out)
-    out = self.dropout3(out)
+    # out = self.l3(out)
+    # out = self.bn3(out)
+    # out = self.htanh3(out)
+    # out = self.dropout3(out)
 
     out = self.l4(out)
     return out
+
 # Definition of the simplified neural network with additional fully connected layers
 class NeuralNetworkSimplifiedSTE(nn.Module):
   def __init__(self, input_size, hidden_size1, hidden_size2, hidden_size3, num_classes):
@@ -275,19 +278,19 @@ class NeuralNetworkSimplifiedSTE(nn.Module):
     # self.l1 = BinarizeLinear(input_size, hidden_size1)
     # self.bn1 = nn.BatchNorm1d(hidden_size1)
     self.htanh1 = nn.ReLU()
-    self.dropout1 = nn.Dropout(p=0.3)
+    self.dropout1 = nn.Dropout(p=0.0)
 
     self.l2 = BinarizeLinearSTE(hidden_size1, hidden_size2)
     # self.l2 = BinarizeLinear(hidden_size1, hidden_size2)
     # self.bn2 = nn.BatchNorm1d(hidden_size2)
     self.htanh2 = nn.ReLU()
-    self.dropout2 = nn.Dropout(p=0.3)
+    self.dropout2 = nn.Dropout(p=0.0)
 
     # self.l3 = BinarizeLinear(hidden_size2, hidden_size3)
     self.l3 = BinarizeLinearSTE(hidden_size2, hidden_size3)
     # self.bn3 = nn.BatchNorm1d(hidden_size3)
     self.htanh3 = nn.ReLU()
-    self.dropout3 = nn.Dropout(p=0.3)
+    self.dropout3 = nn.Dropout(p=0.0)
 
     self.l4 = BinarizeLinearSTE(hidden_size3, num_classes)
     # self.l4 = BinarizeLinear(hidden_size3, num_classes)
@@ -312,13 +315,142 @@ class NeuralNetworkSimplifiedSTE(nn.Module):
     out = self.l4(out)
     return out
 
+# Class used during the process of weights optimization
+class NeuralNetworkSimplifiedSTEIdentical(nn.Module):
+  def __init__(self, input_size, hidden_size1, hidden_size2, hidden_size3, num_classes):
+    super(NeuralNetworkSimplifiedSTEIdentical, self).__init__()
+
+    self.l1 = BinarizeLinearSTE(input_size, hidden_size1)
+    self.bn1 = nn.BatchNorm1d(hidden_size1)
+    self.htanh1 = nn.Hardtanh()
+    self.dropout1 = nn.Dropout(p=0.0)
+
+    self.l2 = BinarizeLinearSTE(hidden_size1, hidden_size2)
+    self.bn2 = nn.BatchNorm1d(hidden_size2)
+    self.htanh2 = nn.Hardtanh()
+    self.dropout2 = nn.Dropout(p=0.0)
+
+    self.l3 = BinarizeLinearSTE(hidden_size2, hidden_size3)
+    self.bn3 = nn.BatchNorm1d(hidden_size3)
+    self.htanh3 = nn.Hardtanh()
+    self.dropout3 = nn.Dropout(p=0.0)
+
+    # float32 final layer
+    self.l4 = nn.Linear(hidden_size3, num_classes)
+
+  def forward(self, x, y):
+    x = x.view(x.size(0), -1)
+
+    out = self.l1(x)
+    out = self.bn1(out)
+    out = self.htanh1(out)
+    out = self.dropout1(out)
+
+    out = self.l2(out)
+    out = self.bn2(out)
+    out = self.htanh2(out)
+    out = self.dropout2(out)
+
+    out = self.l3(out)
+    out = self.bn3(out)
+    out = self.htanh3(out)
+    out = self.dropout3(out)
+
+    out = self.l4(out)
+    return out
+
+def save_weights(model, directory='weights'):
+  import os
+  import numpy as np
+
+  if not os.path.exists(directory):
+    os.makedirs(directory)
+
+  for layer_name, layer in model.named_modules():
+    # Verifichiamo se il layer ha parametri "weight" (es. nn.Linear, BatchNorm, BinarizeLinear, ecc.).
+    if hasattr(layer, 'weight') and layer.weight is not None:
+      # Determina se è un layer binarizzato o meno
+      is_binarized = isinstance(layer, BinarizeLinear) or isinstance(layer, BinarizeLinearSTE)
+
+      # Salvataggio WEIGHTS
+      if is_binarized:
+        # Ottieni i pesi originali, se esiste .org altrimenti i pesi attuali
+        weight_org = layer.weight.org if hasattr(layer.weight, 'org') else layer.weight.data
+        w_bin = binarize(weight_org).detach().cpu().numpy()  # {-1, +1}
+        w_bin = (w_bin > 0).astype(np.uint8)                 # Converti in {0,1}
+        packed_w = np.packbits(w_bin.flatten())              # Bit-packing
+
+        weight_file = os.path.join(directory, f'{layer_name}_weights_binarized.bin')
+        with open(weight_file, 'wb') as f:
+          f.write(packed_w.tobytes())
+      else:
+        # Non binarizzato => float
+        w_float = layer.weight.data.detach().cpu().numpy().astype(np.float32)
+        weight_file = os.path.join(directory, f'{layer_name}_weights_float.bin')
+        w_float.tofile(weight_file)
+
+      # Salvataggio BIAS, se presente
+      if layer.bias is not None:
+        if is_binarized:
+          bias_org = layer.bias.org if hasattr(layer.bias, 'org') else layer.bias.data
+          b_bin = binarize(bias_org).detach().cpu().numpy()  # {-1, +1}
+          b_bin = (b_bin > 0).astype(np.uint8)               # {0,1}
+          packed_b = np.packbits(b_bin.flatten())
+
+          bias_file = os.path.join(directory, f'{layer_name}_biases_binarized.bin')
+          with open(bias_file, 'wb') as f:
+            f.write(packed_b.tobytes())
+        else:
+          b_float = layer.bias.data.detach().cpu().numpy().astype(np.float32)
+          bias_file = os.path.join(directory, f'{layer_name}_biases_float.bin')
+          b_float.tofile(bias_file)
+
+  print(f"Pesi salvati nella cartella '{directory}'.")
+
+
+def save_binarized_weights(model, directory='binarized-weights'):
+  import os
+  if not os.path.exists(directory):
+    os.makedirs(directory)
+
+  for name, layer in model.named_modules():
+    # Controlla se è un layer binarizzato
+    if isinstance(layer, BinarizeLinear):
+      # Ottieni i pesi binarizzati e convertili a {0,1} per il bit packing
+      weights = binarize(layer.weight.org).detach().cpu().numpy()
+      # Converti da {-1, +1} a {0, 1}
+      weights = (weights > 0).astype(np.uint8)
+      # Appiattisci l'array
+      flat_weights = weights.flatten()
+
+      # Bit-packing: 8 valori per byte
+      packed = np.packbits(flat_weights)
+
+      # Salva il risultato in un file binario
+      weight_file = os.path.join(directory, f'{name}_weights.bin')
+      with open(weight_file, 'wb') as f:
+        f.write(packed.tobytes())
+
+      # Gestisci i bias se necessario, similmente
+      if layer.bias is not None:
+        biases = binarize(layer.bias.org).detach().cpu().numpy()
+        biases = (biases > 0).astype(np.uint8)
+        flat_biases = biases.flatten()
+        packed_biases = np.packbits(flat_biases)
+        bias_file = os.path.join(directory, f'{name}_biases.bin')
+        with open(bias_file, 'wb') as f:
+          f.write(packed_biases.tobytes())
+
+  print(f'Pesi binarizzati salvati nella cartella {directory}')
+
 # Model hyperparameters
 # 2048, dropout=0.3, ReLu => 80% on test set
 # 1024, dropout=0.3, ReLu => 77% on test set
-hidden_size1 = 1024
-hidden_size2 = 1024
-hidden_size3 = 1024
+hidden_size1 = 256
+hidden_size2 = 256
+hidden_size3 = 256
 
+# model = NeuralNetworkSimplifiedSTEIdentical(input_size, hidden_size1, hidden_size2, hidden_size3, num_classes).to(device)
 model = NeuralNetworkSimplified(input_size, hidden_size1, hidden_size2, hidden_size3, num_classes).to(device)
 # model = NeuralNetworkSimplifiedSTE(input_size, hidden_size1, hidden_size2, hidden_size3, num_classes).to(device)
 
@@ -371,3 +503,5 @@ for features, labels, fp in test_loader:
 print('\nModel accuracy on the test set: {:.2f}%'
     .format(100 * correct / total))
 
+# save_binarized_weights(model)
+save_weights(model)
