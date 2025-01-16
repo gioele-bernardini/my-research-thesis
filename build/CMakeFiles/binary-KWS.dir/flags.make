@@ -5,13 +5,13 @@
 # compile C with /opt/st/stm32cubeclt_1.17.0/GNU-tools-for-STM32/bin/arm-none-eabi-gcc
 ASM_DEFINES = -DDEBUG -DSTM32F334x8 -DUSE_HAL_DRIVER
 
-ASM_INCLUDES = -I/home/gioele/UNIVERSITA/binary-KWS/cmake/stm32cubemx/../../Core/Inc -I/home/gioele/UNIVERSITA/binary-KWS/cmake/stm32cubemx/../../Drivers/STM32F3xx_HAL_Driver/Inc -I/home/gioele/UNIVERSITA/binary-KWS/cmake/stm32cubemx/../../Drivers/STM32F3xx_HAL_Driver/Inc/Legacy -I/home/gioele/UNIVERSITA/binary-KWS/cmake/stm32cubemx/../../Drivers/CMSIS/Device/ST/STM32F3xx/Include -I/home/gioele/UNIVERSITA/binary-KWS/cmake/stm32cubemx/../../Drivers/CMSIS/Include
+ASM_INCLUDES = -I/home/gioele/UNIVERSITA/binary-KWS/Core/Inc -I/home/gioele/UNIVERSITA/binary-KWS/cmake/stm32cubemx/../../Core/Inc -I/home/gioele/UNIVERSITA/binary-KWS/cmake/stm32cubemx/../../Drivers/STM32F3xx_HAL_Driver/Inc -I/home/gioele/UNIVERSITA/binary-KWS/cmake/stm32cubemx/../../Drivers/STM32F3xx_HAL_Driver/Inc/Legacy -I/home/gioele/UNIVERSITA/binary-KWS/cmake/stm32cubemx/../../Drivers/CMSIS/Device/ST/STM32F3xx/Include -I/home/gioele/UNIVERSITA/binary-KWS/cmake/stm32cubemx/../../Drivers/CMSIS/Include
 
 ASM_FLAGS =  -mcpu=cortex-m4 -mfpu=fpv4-sp-d16 -mfloat-abi=hard  -Wall -Wextra -Wpedantic -fdata-sections -ffunction-sections -O0 -g3 -x assembler-with-cpp -MMD -MP -g
 
 C_DEFINES = -DDEBUG -DSTM32F334x8 -DUSE_HAL_DRIVER
 
-C_INCLUDES = -I/home/gioele/UNIVERSITA/binary-KWS/cmake/stm32cubemx/../../Core/Inc -I/home/gioele/UNIVERSITA/binary-KWS/cmake/stm32cubemx/../../Drivers/STM32F3xx_HAL_Driver/Inc -I/home/gioele/UNIVERSITA/binary-KWS/cmake/stm32cubemx/../../Drivers/STM32F3xx_HAL_Driver/Inc/Legacy -I/home/gioele/UNIVERSITA/binary-KWS/cmake/stm32cubemx/../../Drivers/CMSIS/Device/ST/STM32F3xx/Include -I/home/gioele/UNIVERSITA/binary-KWS/cmake/stm32cubemx/../../Drivers/CMSIS/Include
+C_INCLUDES = -I/home/gioele/UNIVERSITA/binary-KWS/Core/Inc -I/home/gioele/UNIVERSITA/binary-KWS/cmake/stm32cubemx/../../Core/Inc -I/home/gioele/UNIVERSITA/binary-KWS/cmake/stm32cubemx/../../Drivers/STM32F3xx_HAL_Driver/Inc -I/home/gioele/UNIVERSITA/binary-KWS/cmake/stm32cubemx/../../Drivers/STM32F3xx_HAL_Driver/Inc/Legacy -I/home/gioele/UNIVERSITA/binary-KWS/cmake/stm32cubemx/../../Drivers/CMSIS/Device/ST/STM32F3xx/Include -I/home/gioele/UNIVERSITA/binary-KWS/cmake/stm32cubemx/../../Drivers/CMSIS/Include
 
 C_FLAGS =  -mcpu=cortex-m4 -mfpu=fpv4-sp-d16 -mfloat-abi=hard  -Wall -Wextra -Wpedantic -fdata-sections -ffunction-sections -O0 -g3 -g -std=gnu11
 

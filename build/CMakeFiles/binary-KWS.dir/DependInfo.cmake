@@ -21,6 +21,7 @@ set(CMAKE_TARGET_DEFINITIONS_ASM
 
 # The include file search paths:
 set(CMAKE_ASM_TARGET_INCLUDE_PATH
+  "/home/gioele/UNIVERSITA/binary-KWS/Core/Inc"
   "/home/gioele/UNIVERSITA/binary-KWS/cmake/stm32cubemx/../../Core/Inc"
   "/home/gioele/UNIVERSITA/binary-KWS/cmake/stm32cubemx/../../Drivers/STM32F3xx_HAL_Driver/Inc"
   "/home/gioele/UNIVERSITA/binary-KWS/cmake/stm32cubemx/../../Drivers/STM32F3xx_HAL_Driver/Inc/Legacy"

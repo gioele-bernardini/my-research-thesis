@@ -77,6 +77,80 @@ void toggle_led(void) {
   HAL_Delay(500); // 500ms di ritardo
 }
 
+void weights_size_test(void) {
+  size_t j = 0;  // dichiarazione fuori dai loop per riutilizzo
+
+  // Pattern per bn1_biases_float16
+  for (size_t i = 0; i < bn1_biases_float16_len; ++i) {
+    for (j = 0; j < bn1_biases_float16[i]; j++) {
+      toggle_led();
+    }
+  }
+
+  // Pattern per bn1_weights_float16
+  for (size_t i = 0; i < bn1_weights_float16_len; ++i) {
+    for (j = 0; j < bn1_weights_float16[i]; j++) {
+      toggle_led();
+    }
+  }
+
+  // Pattern per bn2_biases_float16
+  for (size_t i = 0; i < bn2_biases_float16_len; ++i) {
+    for (j = 0; j < bn2_biases_float16[i]; j++) {
+      toggle_led();
+    }
+  }
+
+  // Pattern per bn2_weights_float16
+  for (size_t i = 0; i < bn2_weights_float16_len; ++i) {
+    for (j = 0; j < bn2_weights_float16[i]; j++) {
+      toggle_led();
+    }
+  }
+
+  // Pattern per l1_biases_binarized
+  for (size_t i = 0; i < l1_biases_binarized_len; ++i) {
+    for (j = 0; j < l1_biases_binarized[i]; j++) {
+      toggle_led();
+    }
+  }
+
+  // Pattern per l1_weights_binarized
+  for (size_t i = 0; i < l1_weights_binarized_len; ++i) {
+    for (j = 0; j < l1_weights_binarized[i]; j++) {
+      toggle_led();
+    }
+  }
+
+  // Pattern per l2_biases_binarized
+  for (size_t i = 0; i < l2_biases_binarized_len; ++i) {
+    for (j = 0; j < l2_biases_binarized[i]; j++) {
+      toggle_led();
+    }
+  }
+
+  // Pattern per l2_weights_binarized
+  for (size_t i = 0; i < l2_weights_binarized_len; ++i) {
+    for (j = 0; j < l2_weights_binarized[i]; j++) {
+      toggle_led();
+    }
+  }
+
+  // Pattern per l4_biases_float16
+  for (size_t i = 0; i < l4_biases_float16_len; ++i) {
+    for (j = 0; j < l4_biases_float16[i]; j++) {
+      toggle_led();
+    }
+  }
+
+  // Pattern per l4_weights_float16
+  for (size_t i = 0; i < l4_weights_float16_len; ++i) {
+    for (j = 0; j < l4_weights_float16[i]; j++) {
+      toggle_led();
+    }
+  }
+}
+
 /**
   * @brief  The application entry point.
   * @retval int
@@ -115,10 +189,6 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    for (int i = 0; i < bn1_biases_float16[1]; i++)
-      toggle_led();
-
-    break;
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
