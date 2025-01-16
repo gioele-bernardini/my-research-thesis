@@ -1,5 +1,5 @@
 # Python environment folder
-thesis/
+thesis_env/
 
 __pycache__/
 # Google Dataset and MNIST Dataset
