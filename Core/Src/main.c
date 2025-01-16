@@ -72,6 +72,11 @@ static void MX_USART2_UART_Init(void);
 
 /* USER CODE END 0 */
 
+void toggle_led(void) {
+  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5); // Sostituisci con il tuo GPIO
+  HAL_Delay(500); // 500ms di ritardo
+}
+
 /**
   * @brief  The application entry point.
   * @retval int
@@ -110,6 +115,8 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+    for (int i = 0; i < bn1_biases_float16[1]; i++)
+      toggle_led();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
