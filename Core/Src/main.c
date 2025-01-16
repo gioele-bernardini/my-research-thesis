@@ -117,6 +117,8 @@ int main(void)
   {
     for (int i = 0; i < bn1_biases_float16[1]; i++)
       toggle_led();
+
+    break;
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
