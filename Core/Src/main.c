@@ -19,6 +19,19 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 
+#include "weights_16bit/bn1_biases_float16.h"
+#include "weights_16bit/bn1_weights_float16.h"
+#include "weights_16bit/bn2_biases_float16.h"
+#include "weights_16bit/bn2_weights_float16.h"
+
+#include "weights_16bit/l1_biases_binarized.h"
+#include "weights_16bit/l1_weights_binarized.h"
+#include "weights_16bit/l2_biases_binarized.h"
+#include "weights_16bit/l2_weights_binarized.h"
+
+#include "weights_16bit/l4_biases_float16.h"
+#include "weights_16bit/l4_weights_float16.h"
+
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 

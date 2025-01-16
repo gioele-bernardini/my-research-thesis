@@ -1,0 +1,25 @@
+# ninja log v5
+3	274	1737060865893389740	CMakeFiles/binary-KWS.dir/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_dma.c.obj	12a00220b91416b5
+2	327	1737060865942390194	CMakeFiles/binary-KWS.dir/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal.c.obj	fd0ca1563d26edc0
+3	438	1737060866053391222	CMakeFiles/binary-KWS.dir/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_cortex.c.obj	61e42b958a704541
+2	469	1737060866087391537	CMakeFiles/binary-KWS.dir/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_uart.c.obj	e0a7583f885aca7c
+250	525	1737060866144392065	CMakeFiles/binary-KWS.dir/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_flash_ex.c.obj	f2dae2d0eac62597
+5	362	1737060865980390546	CMakeFiles/binary-KWS.dir/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_flash.c.obj	874c03dfac81916f
+701	760	1737060866379394241	binary-KWS.elf	f1c3b2d33d2f4968
+272	701	1737060866321393704	CMakeFiles/binary-KWS.dir/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_i2c.c.obj	c3cadeaab310ed76
+1	250	1737060865869389518	CMakeFiles/binary-KWS.dir/Core/Src/stm32f3xx_it.c.obj	1baee16761e2cf77
+3	272	1737060865891389722	CMakeFiles/binary-KWS.dir/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_gpio.c.obj	1b05e9a9690417e3
+283	557	1737060866177392371	CMakeFiles/binary-KWS.dir/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_exti.c.obj	3f130218442b5928
+1	315	1737060865930390083	CMakeFiles/binary-KWS.dir/Core/Src/stm32f3xx_hal_msp.c.obj	3b74f26a77314b37
+274	518	1737060866137392000	CMakeFiles/binary-KWS.dir/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_i2c_ex.c.obj	8025184fc35ad6
+317	385	1737060866000390731	CMakeFiles/binary-KWS.dir/Core/Src/sysmem.c.obj	cf7f98d7fee38e5a
+3	317	1737060865929390074	CMakeFiles/binary-KWS.dir/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_rcc_ex.c.obj	1780e4784f83951a
+1	10	0	clean	bd269bfff9b85875
+362	387	1737060866005390778	CMakeFiles/binary-KWS.dir/startup_stm32f334x8.s.obj	e5ae6cef2500a7d3
+315	563	1737060866183392426	CMakeFiles/binary-KWS.dir/Core/Src/system_stm32f3xx.c.obj	7650aa546c84e632
+4	431	1737060866046391157	CMakeFiles/binary-KWS.dir/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_pwr_ex.c.obj	ace65e6ec64ba3b0
+4	427	1737060866047391167	CMakeFiles/binary-KWS.dir/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_pwr.c.obj	ab8fc392020edcac
+2	440	1737060866059391278	CMakeFiles/binary-KWS.dir/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_rcc.c.obj	2e65f55e2013f683
+2	283	1737060865898389787	CMakeFiles/binary-KWS.dir/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_uart_ex.c.obj	399ccf92a9dc7553
+327	440	1737060866060391287	CMakeFiles/binary-KWS.dir/Core/Src/syscalls.c.obj	36944bbd6a8bc077
+1	405	1737060866023390945	CMakeFiles/binary-KWS.dir/Core/Src/main.c.obj	17d94e5089ad6061
