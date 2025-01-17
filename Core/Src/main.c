@@ -191,6 +191,8 @@ int main(void)
   {
     /* USER CODE END WHILE */
 
+    weights_size_test();
+
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */

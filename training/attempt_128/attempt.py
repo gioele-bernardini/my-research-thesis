@@ -17,8 +17,8 @@ batch_size = 512
 learning_rate = 0.001
 
 # Dataset and commands directory
-dataset_dir = './speech-commands'
-commands_file = './commands_list.txt'
+dataset_dir = './../speech-commands'
+commands_file = './../commands_list.txt'
 
 # Loading commands to consider for training
 with open(commands_file, 'r') as f:
@@ -247,7 +247,7 @@ class NeuralNetworkSimplified(nn.Module):
     # self.dropout3 = nn.Dropout(p=0.3)
 
     # self.l5 = nn.Linear(hidden_size3, num_classes)
-    self.l4 = nn.Linear(hidden_size3, num_classes)
+    self.l4 = nn.Linear(hidden_size2, num_classes)
 
   def forward(self, x, y):
     x = x.view(x.size(0), -1)
@@ -494,9 +494,10 @@ def save_binarized_weights(model, directory='binarized-weights'):
 # Model hyperparameters
 # 2048, dropout=0.3, ReLu => 80% on test set
 # 1024, dropout=0.3, ReLu => 77% on test set
-hidden_size1 = 256
-hidden_size2 = 128
-hidden_size3 = 128
+# notevole -> 32 bit e 3 layer -> 60, 60 % (praticamente 0 overfitting)
+hidden_size1 = 64
+hidden_size2 = 32
+hidden_size3 = 32
 
 # model = NeuralNetworkSimplifiedSTEIdentical(input_size, hidden_size1, hidden_size2, hidden_size3, num_classes).to(device)
 model = NeuralNetworkSimplified(input_size, hidden_size1, hidden_size2, hidden_size3, num_classes).to(device)
