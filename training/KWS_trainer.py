@@ -494,6 +494,7 @@ def save_binarized_weights(model, directory='binarized-weights'):
 # Model hyperparameters
 # 2048, dropout=0.3, ReLu => 80% on test set
 # 1024, dropout=0.3, ReLu => 77% on test set
+# (256, 128) => 78% on test set
 hidden_size1 = 256
 hidden_size2 = 128
 hidden_size3 = 128
@@ -501,6 +502,8 @@ hidden_size3 = 128
 # model = NeuralNetworkSimplifiedSTEIdentical(input_size, hidden_size1, hidden_size2, hidden_size3, num_classes).to(device)
 model = NeuralNetworkSimplified(input_size, hidden_size1, hidden_size2, hidden_size3, num_classes).to(device)
 # model = NeuralNetworkSimplifiedSTE(input_size, hidden_size1, hidden_size2, hidden_size3, num_classes).to(device)
+
+# print(input_size)
 
 # Loss function and optimizer
 criterion = nn.CrossEntropyLoss()
