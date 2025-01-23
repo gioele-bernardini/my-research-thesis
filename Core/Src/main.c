@@ -18,19 +18,9 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-
-#include "weights_16bit/bn1_biases_float16.h"
-#include "weights_16bit/bn1_weights_float16.h"
-#include "weights_16bit/bn2_biases_float16.h"
-#include "weights_16bit/bn2_weights_float16.h"
-
-#include "weights_16bit/l1_biases_binarized.h"
-#include "weights_16bit/l1_weights_binarized.h"
-#include "weights_16bit/l2_biases_binarized.h"
-#include "weights_16bit/l2_weights_binarized.h"
-
-#include "weights_16bit/l4_biases_float16.h"
-#include "weights_16bit/l4_weights_float16.h"
+#include "stm32f3xx_hal_adc.h"
+#include "stm32f3xx_hal_dma.h"
+#include "stm32f3xx_hal_uart.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -53,6 +43,8 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+ADC_HandleTypeDef hadc1;
+
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
@@ -63,6 +55,7 @@ UART_HandleTypeDef huart2;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
+static void MX_ADC1_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -71,85 +64,6 @@ static void MX_USART2_UART_Init(void);
 /* USER CODE BEGIN 0 */
 
 /* USER CODE END 0 */
-
-void toggle_led(void) {
-  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5); // Sostituisci con il tuo GPIO
-  HAL_Delay(500); // 500ms di ritardo
-}
-
-void weights_size_test(void) {
-  size_t j = 0;  // dichiarazione fuori dai loop per riutilizzo
-
-  // Pattern per bn1_biases_float16
-  for (size_t i = 0; i < bn1_biases_float16_len; ++i) {
-    for (j = 0; j < bn1_biases_float16[i]; j++) {
-      toggle_led();
-    }
-  }
-
-  // Pattern per bn1_weights_float16
-  for (size_t i = 0; i < bn1_weights_float16_len; ++i) {
-    for (j = 0; j < bn1_weights_float16[i]; j++) {
-      toggle_led();
-    }
-  }
-
-  // Pattern per bn2_biases_float16
-  for (size_t i = 0; i < bn2_biases_float16_len; ++i) {
-    for (j = 0; j < bn2_biases_float16[i]; j++) {
-      toggle_led();
-    }
-  }
-
-  // Pattern per bn2_weights_float16
-  for (size_t i = 0; i < bn2_weights_float16_len; ++i) {
-    for (j = 0; j < bn2_weights_float16[i]; j++) {
-      toggle_led();
-    }
-  }
-
-  // Pattern per l1_biases_binarized
-  for (size_t i = 0; i < l1_biases_binarized_len; ++i) {
-    for (j = 0; j < l1_biases_binarized[i]; j++) {
-      toggle_led();
-    }
-  }
-
-  // Pattern per l1_weights_binarized
-  for (size_t i = 0; i < l1_weights_binarized_len; ++i) {
-    for (j = 0; j < l1_weights_binarized[i]; j++) {
-      toggle_led();
-    }
-  }
-
-  // Pattern per l2_biases_binarized
-  for (size_t i = 0; i < l2_biases_binarized_len; ++i) {
-    for (j = 0; j < l2_biases_binarized[i]; j++) {
-      toggle_led();
-    }
-  }
-
-  // Pattern per l2_weights_binarized
-  for (size_t i = 0; i < l2_weights_binarized_len; ++i) {
-    for (j = 0; j < l2_weights_binarized[i]; j++) {
-      toggle_led();
-    }
-  }
-
-  // Pattern per l4_biases_float16
-  for (size_t i = 0; i < l4_biases_float16_len; ++i) {
-    for (j = 0; j < l4_biases_float16[i]; j++) {
-      toggle_led();
-    }
-  }
-
-  // Pattern per l4_weights_float16
-  for (size_t i = 0; i < l4_weights_float16_len; ++i) {
-    for (j = 0; j < l4_weights_float16[i]; j++) {
-      toggle_led();
-    }
-  }
-}
 
 /**
   * @brief  The application entry point.
@@ -181,20 +95,28 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART2_UART_Init();
+  MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
-  {
-    /* USER CODE END WHILE */
-
-    weights_size_test();
-
-    /* USER CODE BEGIN 3 */
-  }
+while (1)
+{
+    HAL_ADC_Start(&hadc1);
+    HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
+    uint32_t value = HAL_ADC_GetValue(&hadc1);
+    
+    if (value > 200)
+    {
+        char buffer[20];
+        uint16_t len = snprintf(buffer, sizeof(buffer), "V:%lu\r\n", value);
+        HAL_UART_Transmit(&huart2, (uint8_t*)buffer, len, 100);
+    }
+    
+    HAL_Delay(100);  // Add a small delay to prevent overwhelming the UART
+}
   /* USER CODE END 3 */
 }
 
@@ -206,6 +128,7 @@ void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+  RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
 
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
@@ -234,6 +157,78 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_ADC12;
+  PeriphClkInit.Adc12ClockSelection = RCC_ADC12PLLCLK_DIV1;
+  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
+  {
+    Error_Handler();
+  }
+}
+
+/**
+  * @brief ADC1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_ADC1_Init(void)
+{
+
+  /* USER CODE BEGIN ADC1_Init 0 */
+
+  /* USER CODE END ADC1_Init 0 */
+
+  ADC_MultiModeTypeDef multimode = {0};
+  ADC_ChannelConfTypeDef sConfig = {0};
+
+  /* USER CODE BEGIN ADC1_Init 1 */
+
+  /* USER CODE END ADC1_Init 1 */
+
+  /** Common config
+  */
+  hadc1.Instance = ADC1;
+  hadc1.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV1;
+  hadc1.Init.Resolution = ADC_RESOLUTION_12B;
+  hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
+  hadc1.Init.ContinuousConvMode = DISABLE;
+  hadc1.Init.DiscontinuousConvMode = DISABLE;
+  hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+  hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+  hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+  hadc1.Init.NbrOfConversion = 1;
+  hadc1.Init.DMAContinuousRequests = DISABLE;
+  hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+  hadc1.Init.LowPowerAutoWait = DISABLE;
+  hadc1.Init.Overrun = ADC_OVR_DATA_OVERWRITTEN;
+  if (HAL_ADC_Init(&hadc1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure the ADC multi-mode
+  */
+  multimode.Mode = ADC_MODE_INDEPENDENT;
+  if (HAL_ADCEx_MultiModeConfigChannel(&hadc1, &multimode) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Regular Channel
+  */
+  sConfig.Channel = ADC_CHANNEL_1;
+  sConfig.Rank = ADC_REGULAR_RANK_1;
+  sConfig.SingleDiff = ADC_SINGLE_ENDED;
+  sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
+  sConfig.OffsetNumber = ADC_OFFSET_NONE;
+  sConfig.Offset = 0;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN ADC1_Init 2 */
+
+  /* USER CODE END ADC1_Init 2 */
+
 }
 
 /**

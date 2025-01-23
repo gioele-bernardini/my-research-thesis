@@ -24,8 +24,8 @@ target_sources(stm32cubemx INTERFACE
     ../../Core/Src/main.c
     ../../Core/Src/stm32f3xx_it.c
     ../../Core/Src/stm32f3xx_hal_msp.c
-    ../../Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_uart.c
-    ../../Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_uart_ex.c
+    ../../Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_adc.c
+    ../../Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_adc_ex.c
     ../../Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal.c
     ../../Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_rcc.c
     ../../Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_rcc_ex.c
@@ -39,6 +39,8 @@ target_sources(stm32cubemx INTERFACE
     ../../Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_i2c.c
     ../../Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_i2c_ex.c
     ../../Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_exti.c
+    ../../Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_uart.c
+    ../../Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_uart_ex.c
     ../../Core/Src/system_stm32f3xx.c
     ../../Core/Src/sysmem.c
     ../../Core/Src/syscalls.c
