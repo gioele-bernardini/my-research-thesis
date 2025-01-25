@@ -362,50 +362,75 @@ class NeuralNetworkSimplifiedSTEIdentical(nn.Module):
 def save_weights_16bit(model, directory='weights_16bit'):
   import os
   import numpy as np
+  import torch.nn as nn
 
   if not os.path.exists(directory):
     os.makedirs(directory)
 
-  for layer_name, layer in model.named_modules():
-    # Controlliamo se il layer ha parametri 'weight'
+  for name, layer in model.named_modules():
+    # Salva i pesi delle layer Linear o BinarizeLinear
     if hasattr(layer, 'weight') and layer.weight is not None:
-      # Determina se è un layer binarizzato o meno
-      is_binarized = isinstance(layer, BinarizeLinear) or isinstance(layer, BinarizeLinearSTE)
-
-      # Salvataggio WEIGHTS
+      is_binarized = isinstance(layer, (BinarizeLinear, BinarizeLinearSTE))
+      
       if is_binarized:
-        # Ottieni i pesi originali, se esiste .org altrimenti i pesi attuali
+        # Pesi binarizzati
         weight_org = layer.weight.org if hasattr(layer.weight, 'org') else layer.weight.data
-        w_bin = binarize(weight_org).detach().cpu().numpy()   # {-1, +1}
-        w_bin = (w_bin > 0).astype(np.uint8)           # {0,1}
-        packed_w = np.packbits(w_bin.flatten())        # Bit-packing
+        w_bin = binarize(weight_org).detach().cpu().numpy()  # valori in {-1,+1}
+        w_bin = (w_bin > 0).astype(np.uint8)  # converte in {0,1}
+        packed_w = np.packbits(w_bin.flatten())
 
-        weight_file = os.path.join(directory, f'{layer_name}_weights_binarized.bin')
+        weight_file = os.path.join(directory, f'{name}_weights_binarized.bin')
         with open(weight_file, 'wb') as f:
           f.write(packed_w.tobytes())
-      else:
-        # Non binarizzato => usa float16
-        w_float16 = layer.weight.data.detach().cpu().numpy().astype(np.float16)
-        weight_file = os.path.join(directory, f'{layer_name}_weights_float16.bin')
-        w_float16.tofile(weight_file)
 
-      # Salvataggio BIAS, se presente
-      if layer.bias is not None:
-        if is_binarized:
+        # Bias binarizzato (se presente)
+        if layer.bias is not None:
           bias_org = layer.bias.org if hasattr(layer.bias, 'org') else layer.bias.data
-          b_bin = binarize(bias_org).detach().cpu().numpy()  # {-1, +1}
-          b_bin = (b_bin > 0).astype(np.uint8)         # {0,1}
+          b_bin = binarize(bias_org).detach().cpu().numpy()
+          b_bin = (b_bin > 0).astype(np.uint8)
           packed_b = np.packbits(b_bin.flatten())
 
-          bias_file = os.path.join(directory, f'{layer_name}_biases_binarized.bin')
+          bias_file = os.path.join(directory, f'{name}_biases_binarized.bin')
           with open(bias_file, 'wb') as f:
             f.write(packed_b.tobytes())
-        else:
+
+      else:
+        # Pesi float in formato float16
+        w_float16 = layer.weight.data.detach().cpu().numpy().astype(np.float16)
+        weight_file = os.path.join(directory, f'{name}_weights_float16.bin')
+        w_float16.tofile(weight_file)
+
+        # Bias float16 (se presente)
+        if layer.bias is not None:
           b_float16 = layer.bias.data.detach().cpu().numpy().astype(np.float16)
-          bias_file = os.path.join(directory, f'{layer_name}_biases_float16.bin')
+          bias_file = os.path.join(directory, f'{name}_biases_float16.bin')
           b_float16.tofile(bias_file)
 
-  print(f"Pesi salvati in 16 bit nella cartella '{directory}'.")
+    # Salva parametri di BatchNorm1d (in float16)
+    if isinstance(layer, nn.BatchNorm1d):
+      # Running mean
+      running_mean = layer.running_mean.detach().cpu().numpy().astype(np.float16)
+      mean_file = os.path.join(directory, f'{name}_running_mean_float16.bin')
+      running_mean.tofile(mean_file)
+
+      # Running variance
+      running_var = layer.running_var.detach().cpu().numpy().astype(np.float16)
+      var_file = os.path.join(directory, f'{name}_running_variance_float16.bin')
+      running_var.tofile(var_file)
+
+      # Scale (gamma)
+      if layer.weight is not None:
+        weight_scale = layer.weight.data.detach().cpu().numpy().astype(np.float16)
+        scale_file = os.path.join(directory, f'{name}_scale_float16.bin')
+        weight_scale.tofile(scale_file)
+
+      # Shift (beta)
+      if layer.bias is not None:
+        bias_shift = layer.bias.data.detach().cpu().numpy().astype(np.float16)
+        shift_file = os.path.join(directory, f'{name}_shift_float16.bin')
+        bias_shift.tofile(shift_file)
+
+  print(f"Weights and BN parameters saved in '{directory}'.")
 
 def save_weights(model, directory='weights'):
   import os
