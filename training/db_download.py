@@ -29,7 +29,7 @@ def download_and_extract(url=DATA_URL, archive_name=ARCHIVE_NAME, output_dir=OUT
         tar.extractall(path=output_dir)
     print(f"Extraction completed in the '{output_dir}' directory.")
 
-    # Rimuovi l'archivio dopo l'estrazione
+    # Remove the archieve
     if os.path.exists(archive_name):
         os.remove(archive_name)
         print(f"Archive {archive_name} has been removed.")

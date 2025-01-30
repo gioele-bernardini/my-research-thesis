@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "test_memory.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -31,6 +32,10 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+
+#define ADC_BUFFER_SIZE 1
+uint32_t adcBuffer[ADC_BUFFER_SIZE];
+volatile uint8_t dmaConversionComplete = 0;
 
 /* USER CODE END PD */
 
@@ -98,12 +103,35 @@ int main(void)
   MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
 
+  // Initialize ADC in DMA mode
+  HAL_ADC_Start_DMA(&hadc1, adcBuffer, ADC_BUFFER_SIZE);
+  test_memory_usage();
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+    if (dmaConversionComplete)
+    {
+        dmaConversionComplete = 0;  // Reset the flag
+
+        uint32_t value = adcBuffer[0];
+        
+        if (value > 200)
+        {
+            char buffer[20];
+            uint16_t len = snprintf(buffer, sizeof(buffer), "V:%lu\r\n", value);
+            HAL_UART_Transmit(&huart2, (uint8_t*)buffer, len, 100);
+        }
+        
+        // Restart the connection
+        HAL_ADC_Start_DMA(&hadc1, adcBuffer, ADC_BUFFER_SIZE);
+    }
+    
+    // HAL_Delay(100);
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -238,7 +266,7 @@ static void MX_USART2_UART_Init(void)
 
   /* USER CODE END USART2_Init 1 */
   huart2.Instance = USART2;
-  huart2.Init.BaudRate = 38400;
+  huart2.Init.BaudRate = 250000;
   huart2.Init.WordLength = UART_WORDLENGTH_8B;
   huart2.Init.StopBits = UART_STOPBITS_1;
   huart2.Init.Parity = UART_PARITY_NONE;
@@ -311,6 +339,14 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
+{
+  if (hadc->Instance == ADC1)
+  {
+    dmaConversionComplete = 1;
+  }
+}
 
 /* USER CODE END 4 */
 

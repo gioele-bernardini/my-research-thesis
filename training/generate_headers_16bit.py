@@ -6,14 +6,14 @@ import shutil
 
 def generate_headers(weights_dir='weights_16bit', headers_dir='../Core/Inc/weights_16bit/'):
     """
-    Genera file header .h a partire dai file binari salvati in `weights_dir`.
-    Riconosce:
-      - '_binarized.bin'  => bit-pack con 0/1 (uint8)
-      - '_float16.bin'    => array di float16 (salvato come uint16)
-    Inoltre, svuota prima la cartella `headers_dir` (se esiste) per evitare conflitti.
+    Generates .h header files from binary files stored in `weights_dir`.
+    Recognizes:
+      - '_binarized.bin'  => bit-packed with 0/1 (uint8)
+      - '_float16.bin'    => array of float16 (stored as uint16)
+    Additionally, it first clears the `headers_dir` folder (if it exists) to avoid conflicts.
     """
 
-    # Svuota la cartella degli header, se esiste
+    # Empty the header folder
     if os.path.exists(headers_dir):
         for item in os.listdir(headers_dir):
             item_path = os.path.join(headers_dir, item)
@@ -27,31 +27,31 @@ def generate_headers(weights_dir='weights_16bit', headers_dir='../Core/Inc/weigh
     for filename in os.listdir(weights_dir):
         file_path = os.path.join(weights_dir, filename)
 
-        # Ignora i file che non terminano con '.bin'
+        # Ignore files that do not end with '.bin'
         if not filename.endswith('.bin'):
             continue
 
-        # Determina il tipo di dati dal suffisso
+        # Determine the data type based on the suffix
         if '_binarized.bin' in filename:
             data_type = 'binarized'
         elif '_float16.bin' in filename:
             data_type = 'float16'
         else:
-            # Non sappiamo che tipo sia => skip (o warning)
-            print(f"[generate_headers] ATTENZIONE: '{filename}' non contiene '_binarized' né '_float16'. Skippato.")
+            # Unknown type => skip (or warn)
+            print(f"[generate_headers] WARNING: '{filename}' does not contain '_binarized' or '_float16'. Skipped.")
             continue
 
-        # Genera un nome "base" senza estensione .bin
-        base_name = os.path.splitext(filename)[0]  
-        # Rimpiazziamo eventuali punti o caratteri speciali nel nome dell'array
-        array_name = base_name.replace('.', '_')   
+        # Generate a "base" name without the .bin extension
+        base_name = os.path.splitext(filename)[0]
+        # Replace any dots or special characters in the array name
+        array_name = base_name.replace('.', '_')
 
-        # Crea il path per il file header
+        # Create the path for the header file
         header_filename = os.path.join(headers_dir, f'{base_name}.h')
 
-        # === Lettura file binario ===
+        # === Read binary file ===
         if data_type == 'binarized':
-            # Legge i dati in uint8 (bit-pack 0/1)
+            # Read data as uint8 (bit-packed 0/1)
             with open(file_path, 'rb') as f:
                 raw = f.read()
             data = np.frombuffer(raw, dtype=np.uint8)
@@ -59,17 +59,17 @@ def generate_headers(weights_dir='weights_16bit', headers_dir='../Core/Inc/weigh
         else:  # float16
             data = np.fromfile(file_path, dtype=np.float16)
 
-        # === Creazione del contenuto dell'header ===
+        # === Create header content ===
         lines = []
-        lines.append(f'// Header generato automaticamente per {filename}')
+        lines.append(f'// Automatically generated header for {filename}')
         lines.append(f'#ifndef {array_name.upper()}_H')
         lines.append(f'#define {array_name.upper()}_H\n')
 
         if data_type == 'binarized':
-            lines.append('// Dati binarizzati (bit-pack 0/1)')
+            lines.append('// Binarized data (bit-packed 0/1)')
             lines.append(f'static const unsigned char {array_name}[] = {{')
             hex_values = [f'0x{val:02X}' for val in data]
-            # Stampa 12 valori per riga
+            # Print 12 values per line
             for i in range(0, len(hex_values), 12):
                 chunk = ', '.join(hex_values[i:i+12])
                 lines.append(f'  {chunk},')
@@ -77,13 +77,13 @@ def generate_headers(weights_dir='weights_16bit', headers_dir='../Core/Inc/weigh
             lines.append(f'static const unsigned int {array_name}_len = {len(data)};\n')
 
         else:  # float16
-            # Manteniamo i bit originali convertendoli in uint16
+            # Preserve the original bits by converting to uint16
             uint16_data = data.view(np.uint16)
-            lines.append('// Dati float16 salvati come array di uint16_t (mantiene il bit pattern dei float16)')
+            lines.append('// Float16 data stored as uint16_t array (preserves the bit pattern of float16)')
             lines.append('#include <stdint.h>')
             lines.append(f'static const uint16_t {array_name}[] = {{')
             hex_values = [f'0x{val:04X}' for val in uint16_data]
-            # Stampa 8 valori per riga
+            # Print 8 values per line
             for i in range(0, len(hex_values), 8):
                 chunk = ', '.join(hex_values[i:i+8])
                 lines.append(f'  {chunk},')
@@ -92,11 +92,11 @@ def generate_headers(weights_dir='weights_16bit', headers_dir='../Core/Inc/weigh
 
         lines.append(f'#endif // {array_name.upper()}_H')
 
-        # === Salvataggio del file header ===
+        # === Save the header file ===
         with open(header_filename, 'w') as hf:
             hf.write('\n'.join(lines))
 
-        print(f"[generate_headers] Generato header: {header_filename}")
+        print(f"[generate_headers] Header generated: {header_filename}")
 
 
 if __name__ == '__main__':
