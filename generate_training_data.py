@@ -11,8 +11,10 @@ import matplotlib.pyplot as plt
 # Constants
 SPEECH_DATA = 'speech_data'
 EXPECTED_SAMPLES = 16000  # 1 second of audio at 16kHz
-NOISE_FLOOR = 0.1
-MINIMUM_VOICE_LENGTH = EXPECTED_SAMPLES / 4  # Minimum voice length required
+# With 0.1, works
+NOISE_FLOOR = 0.05
+# With 10, works
+MINIMUM_VOICE_LENGTH = EXPECTED_SAMPLES / 10  # Minimum voice length required
 words = [
     '_background_noise_',
     'up',

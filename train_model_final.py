@@ -105,7 +105,7 @@ model.summary()
 
 # --- Compilazione del modello ---
 # Aumentato il numero di epoche da 30 a 50.
-epochs = 50
+epochs = 30
 model.compile(optimizer='adam',
               loss=tf.keras.losses.SparseCategoricalCrossentropy(),
               metrics=['accuracy'])
