@@ -4,6 +4,7 @@ thesis_env/
 __pycache__/
 # Google Dataset and MNIST Dataset
 speech_commands/
+speech_data/
 MNIST-data/
 
 # Temporary files and folders for debugging
