@@ -205,9 +205,9 @@ print("Saved test data")
 
 # Get the width and height of the spectrogram "image"
 IMG_WIDTH = X_train[0].shape[0]
-# print(IMG_WIDTH)
+print(IMG_WIDTH)
 IMG_HEIGHT = X_train[0].shape[1]
-# print(IMG_HEIGHT)
+print(IMG_HEIGHT)
 
 # Function to plot a grid of spectrogram images
 def plot_images2(images_arr, imageWidth, imageHeight):
